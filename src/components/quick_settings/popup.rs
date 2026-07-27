@@ -4,6 +4,7 @@ use crate::components::quick_settings::grid::GridSection;
 use crate::components::quick_settings::header::HeaderSection;
 use crate::components::quick_settings::sliders::SlidersSection;
 use crate::components::quick_settings::wifi_page::WifiPage;
+use crate::services::battery::BatteryService;
 use chrono::Local;
 use gtk4::prelude::*;
 use gtk4::{Application, ApplicationWindow, Box as GtkBox, Label, Orientation, Separator, Stack, StackTransitionType};
@@ -15,6 +16,7 @@ pub struct QuickSettingsPopup {
     pub window: ApplicationWindow,
     pub stack: Stack,
     pub grid: Rc<GridSection>,
+    pub batt_label: Label,
 }
 
 impl QuickSettingsPopup {
@@ -102,7 +104,14 @@ impl QuickSettingsPopup {
         f_sep.add_css_class("qs-footer-sep");
         footer.append(&f_sep);
 
-        let batt_lbl = Label::new(Some("100% - Battery"));
+        let batt_info = BatteryService::get_info();
+        let batt_str = if batt_info.is_present {
+            format!("{}% - {}", batt_info.capacity, batt_info.status)
+        } else {
+            "Plugged in - AC Power".to_string()
+        };
+
+        let batt_lbl = Label::new(Some(&batt_str));
         batt_lbl.add_css_class("qs-footer-text");
         batt_lbl.set_hexpand(true);
         batt_lbl.set_halign(gtk4::Align::Start);
@@ -134,14 +143,27 @@ impl QuickSettingsPopup {
         popup_box.append(&stack);
         window.set_child(Some(&popup_box));
 
-        Self { window, stack, grid }
+        Self {
+            window,
+            stack,
+            grid,
+            batt_label: batt_lbl,
+        }
     }
 
-    /// Toggle visibility of the Quick Settings popup panel instantly (0ms presentation)
+    /// Toggle visibility of the Quick Settings popup panel
     pub fn toggle(&self) {
         if self.window.is_visible() {
             self.window.set_visible(false);
         } else {
+            let batt_info = BatteryService::get_info();
+            let batt_str = if batt_info.is_present {
+                format!("{}% - {}", batt_info.capacity, batt_info.status)
+            } else {
+                "Plugged in - AC Power".to_string()
+            };
+            self.batt_label.set_text(&batt_str);
+
             self.stack.set_visible_child_name("main");
             self.window.present();
             GridSection::async_refresh(Rc::clone(&self.grid));

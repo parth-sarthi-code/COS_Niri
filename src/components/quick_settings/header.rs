@@ -24,10 +24,16 @@ impl HeaderSection {
         let avatar_bubble = GtkBox::new(Orientation::Horizontal, 0);
         avatar_bubble.add_css_class("qs-avatar-bubble");
         avatar_bubble.set_size_request(32, 32);
+        avatar_bubble.set_halign(gtk4::Align::Center);
+        avatar_bubble.set_valign(gtk4::Align::Center);
 
         let avatar_icon = Label::new(Some("\u{e7fd}")); // person icon
         avatar_icon.add_css_class("ms-icon");
         avatar_icon.add_css_class("ms-icon-sm");
+        avatar_icon.set_halign(gtk4::Align::Center);
+        avatar_icon.set_valign(gtk4::Align::Center);
+        avatar_icon.set_hexpand(true);
+        avatar_icon.set_vexpand(true);
         avatar_bubble.append(&avatar_icon);
         user_box.append(&avatar_bubble);
 

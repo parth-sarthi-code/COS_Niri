@@ -295,6 +295,8 @@ box.qs-avatar-bubble {
     border-radius: 50%;
     min-width: 32px;
     min-height: 32px;
+    padding: 0;
+    margin: 0;
 }
 
 box.qs-popup-container button.qs-signout-btn {
