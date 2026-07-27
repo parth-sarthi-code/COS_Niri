@@ -7,6 +7,13 @@ use std::process::Command;
 
 pub struct GridSection {
     pub container: Grid,
+    pub wifi_btn: Button,
+    pub wifi_title: Label,
+    pub wifi_sub: Label,
+    pub bt_btn: Button,
+    pub bt_sub: Label,
+    pub night_btn: Button,
+    pub night_sub: Label,
 }
 
 impl GridSection {
@@ -27,18 +34,18 @@ impl GridSection {
         // 1. Wi-Fi Tile (Col 0, Row 0)
         let wifi_enabled = NetworkService::is_wifi_enabled();
         let wifi_ssid = NetworkService::get_active_ssid();
-        let (wifi_label, wifi_status) = if let Some(ssid) = wifi_ssid {
-            (ssid, "Connected".to_string())
+        let (wifi_label, wifi_status) = if let Some(ref ssid) = wifi_ssid {
+            (ssid.as_str(), "Connected")
         } else if wifi_enabled {
-            ("Wi-Fi".to_string(), "Disconnected".to_string())
+            ("Wi-Fi", "Disconnected")
         } else {
-            ("Wi-Fi".to_string(), "Off".to_string())
+            ("Wi-Fi", "Off")
         };
 
-        let wifi_tile = Self::create_feature_tile(
+        let (wifi_tile, wifi_btn, wifi_title, wifi_sub) = Self::create_feature_tile(
             "\u{e63e}", // wifi icon
-            &wifi_label,
-            &wifi_status,
+            wifi_label,
+            wifi_status,
             wifi_enabled,
             true, // Has sub-panel arrow
             move |btn, sub_lbl| {
@@ -65,7 +72,7 @@ impl GridSection {
         let bt_enabled = BluetoothService::is_bluetooth_enabled();
         let bt_status = if bt_enabled { "On" } else { "Off" };
 
-        let bt_tile = Self::create_feature_tile(
+        let (bt_tile, bt_btn, _bt_title, bt_sub) = Self::create_feature_tile(
             "\u{e1a7}", // bluetooth icon
             "Bluetooth",
             bt_status,
@@ -92,7 +99,7 @@ impl GridSection {
         grid.attach(&bt_tile, 1, 0, 1, 1);
 
         // 3. Notifications / DND Tile (Col 2, Row 0)
-        let dnd_tile = Self::create_feature_tile(
+        let (dnd_tile, _, _, _) = Self::create_feature_tile(
             "\u{e7f4}", // notifications icon
             "Notifications",
             "On, all apps",
@@ -111,7 +118,7 @@ impl GridSection {
         let is_night_on = NightLightService::is_enabled();
         let night_status = if is_night_on { "On" } else { "Off" };
 
-        let night_tile = Self::create_feature_tile(
+        let (night_tile, night_btn, _night_title, night_sub) = Self::create_feature_tile(
             "\u{e51c}", // night light icon
             "Night Light",
             night_status,
@@ -136,7 +143,7 @@ impl GridSection {
         grid.attach(&night_tile, 0, 1, 1, 1);
 
         // 5. Screen Capture Tile (Col 1, Row 1)
-        let capture_tile = Self::create_feature_tile(
+        let (capture_tile, _, _, _) = Self::create_feature_tile(
             "\u{e412}", // camera icon
             "Screen capture",
             "",
@@ -150,7 +157,7 @@ impl GridSection {
         grid.attach(&capture_tile, 1, 1, 1, 1);
 
         // 6. Cast Tile (Col 2, Row 1)
-        let cast_tile = Self::create_feature_tile(
+        let (cast_tile, _, _, _) = Self::create_feature_tile(
             "\u{e307}", // cast icon
             "Cast",
             "",
@@ -161,7 +168,56 @@ impl GridSection {
         );
         grid.attach(&cast_tile, 2, 1, 1, 1);
 
-        Self { container: grid }
+        Self {
+            container: grid,
+            wifi_btn,
+            wifi_title,
+            wifi_sub: wifi_sub.unwrap_or_else(|| Label::new(None)),
+            bt_btn,
+            bt_sub: bt_sub.unwrap_or_else(|| Label::new(None)),
+            night_btn,
+            night_sub: night_sub.unwrap_or_else(|| Label::new(None)),
+        }
+    }
+
+    /// Refresh live state for all tiles
+    pub fn refresh(&self) {
+        // Wi-Fi Tile
+        let wifi_on = NetworkService::is_wifi_enabled();
+        let wifi_ssid = NetworkService::get_active_ssid();
+        if let Some(ssid) = wifi_ssid {
+            self.wifi_btn.add_css_class("active");
+            self.wifi_title.set_text(&ssid);
+            self.wifi_sub.set_text("Connected");
+        } else if wifi_on {
+            self.wifi_btn.remove_css_class("active");
+            self.wifi_title.set_text("Wi-Fi");
+            self.wifi_sub.set_text("Disconnected");
+        } else {
+            self.wifi_btn.remove_css_class("active");
+            self.wifi_title.set_text("Wi-Fi");
+            self.wifi_sub.set_text("Off");
+        }
+
+        // Bluetooth Tile
+        let bt_on = BluetoothService::is_bluetooth_enabled();
+        if bt_on {
+            self.bt_btn.add_css_class("active");
+            self.bt_sub.set_text("On");
+        } else {
+            self.bt_btn.remove_css_class("active");
+            self.bt_sub.set_text("Off");
+        }
+
+        // Night Light Tile
+        let night_on = NightLightService::is_enabled();
+        if night_on {
+            self.night_btn.add_css_class("active");
+            self.night_sub.set_text("On");
+        } else {
+            self.night_btn.remove_css_class("active");
+            self.night_sub.set_text("Off");
+        }
     }
 
     fn create_feature_tile<FToggle, FArrow>(
@@ -172,7 +228,7 @@ impl GridSection {
         has_arrow: bool,
         on_toggle: FToggle,
         on_arrow: FArrow,
-    ) -> GtkBox
+    ) -> (GtkBox, Button, Label, Option<Label>)
     where
         FToggle: Fn(&Button, &Option<Label>) + 'static,
         FArrow: Fn() + 'static,
@@ -242,6 +298,6 @@ impl GridSection {
             on_toggle(&btn_clone, &sub_lbl_clone);
         });
 
-        tile_box
+        (tile_box, circle_btn, title_label, sub_label)
     }
 }

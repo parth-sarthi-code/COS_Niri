@@ -2,10 +2,13 @@ use crate::components::center::CenterSection;
 use crate::components::left::LeftSection;
 use crate::components::quick_settings::popup::QuickSettingsPopup;
 use crate::components::right::RightSection;
+use crate::services::bluetooth::BluetoothService;
+use crate::services::network::NetworkService;
 use gtk4::prelude::*;
 use gtk4::{Application, ApplicationWindow, Box as GtkBox, Orientation, Separator};
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
 use std::rc::Rc;
+use std::sync::mpsc;
 
 #[allow(dead_code)]
 pub struct BarWindow {
@@ -37,6 +40,34 @@ impl BarWindow {
 
         // Instantiate Quick Settings floating popup
         let quick_settings = Rc::new(QuickSettingsPopup::new(app));
+
+        // NetworkManager live event listener via channel
+        let (net_tx, net_rx) = mpsc::channel::<()>();
+        NetworkService::listen_events(move || {
+            let _ = net_tx.send(());
+        });
+
+        let qs_net = Rc::clone(&quick_settings);
+        glib::idle_add_local(move || {
+            if net_rx.try_recv().is_ok() {
+                qs_net.grid.refresh();
+            }
+            glib::ControlFlow::Continue
+        });
+
+        // Bluetooth live event listener via channel
+        let (bt_tx, bt_rx) = mpsc::channel::<()>();
+        BluetoothService::listen_events(move || {
+            let _ = bt_tx.send(());
+        });
+
+        let qs_bt = Rc::clone(&quick_settings);
+        glib::idle_add_local(move || {
+            if bt_rx.try_recv().is_ok() {
+                qs_bt.grid.refresh();
+            }
+            glib::ControlFlow::Continue
+        });
 
         // Main shelf container
         let main_box = GtkBox::new(Orientation::Horizontal, 0);

@@ -14,6 +14,7 @@ use std::rc::Rc;
 pub struct QuickSettingsPopup {
     pub window: ApplicationWindow,
     pub stack: Stack,
+    pub grid: Rc<GridSection>,
 }
 
 impl QuickSettingsPopup {
@@ -62,14 +63,14 @@ impl QuickSettingsPopup {
         let st_wifi = Rc::clone(&stack_rc);
         let st_bt = Rc::clone(&stack_rc);
 
-        let grid = GridSection::new(
+        let grid = Rc::new(GridSection::new(
             move || {
                 st_wifi.borrow().set_visible_child_name("wifi");
             },
             move || {
                 st_bt.borrow().set_visible_child_name("bt");
             },
-        );
+        ));
         main_view.append(&grid.container);
 
         let sep2 = Separator::new(Orientation::Horizontal);
@@ -133,7 +134,7 @@ impl QuickSettingsPopup {
         popup_box.append(&stack);
         window.set_child(Some(&popup_box));
 
-        Self { window, stack }
+        Self { window, stack, grid }
     }
 
     /// Toggle visibility of the Quick Settings popup panel
@@ -141,6 +142,7 @@ impl QuickSettingsPopup {
         if self.window.is_visible() {
             self.window.set_visible(false);
         } else {
+            self.grid.refresh();
             self.stack.set_visible_child_name("main");
             self.window.present();
         }

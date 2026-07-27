@@ -1,4 +1,5 @@
-use std::process::Command;
+use std::io::{BufRead, BufReader};
+use std::process::{Command, Stdio};
 use std::thread;
 
 #[derive(Debug, Clone)]
@@ -86,6 +87,27 @@ impl BluetoothService {
                 .env("LC_ALL", "C")
                 .args([action, &m])
                 .output();
+        });
+    }
+
+    /// Event stream listener via `bluetoothctl` for live state updates
+    pub fn listen_events<F>(mut callback: F)
+    where
+        F: FnMut() + Send + 'static,
+    {
+        thread::spawn(move || {
+            if let Ok(mut child) = Command::new("bluetoothctl")
+                .env("LC_ALL", "C")
+                .stdout(Stdio::piped())
+                .spawn()
+            {
+                if let Some(stdout) = child.stdout.take() {
+                    let reader = BufReader::new(stdout);
+                    for _line in reader.lines().flatten() {
+                        callback();
+                    }
+                }
+            }
         });
     }
 }
