@@ -262,11 +262,11 @@ window.qs-popup-window {
 }
 
 box.qs-popup-container {
-    background-color: rgba(20, 21, 28, 0.68);
+    background-color: rgba(18, 19, 26, 0.62);
     border-radius: 24px;
     padding: 20px 24px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.50);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
     font-family: "Roboto", sans-serif;
     color: #e3e2e6;
 }
