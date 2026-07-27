@@ -96,11 +96,12 @@ impl AudioService {
                 if trimmed.starts_with("Name: ") {
                     current_name = trimmed["Name: ".len()..].to_string();
                 } else if trimmed.starts_with("Description: ") {
-                    let desc = trimmed["Description: ".len()..].to_string();
+                    let raw_desc = trimmed["Description: ".len()..].to_string();
+                    let desc = Self::clean_device_name(if raw_desc.is_empty() { &current_name } else { &raw_desc });
                     let is_default = current_name == default_sink;
                     sinks.push(AudioSink {
                         name: current_name.clone(),
-                        description: if desc.is_empty() { current_name.clone() } else { desc },
+                        description: desc,
                         is_default,
                     });
                 }
@@ -110,12 +111,55 @@ impl AudioService {
         if sinks.is_empty() {
             sinks.push(AudioSink {
                 name: "default".into(),
-                description: "Built-in Audio".into(),
+                description: "Built-in Speakers".into(),
                 is_default: true,
             });
         }
 
         sinks
+    }
+
+    /// Clean up redundant hardware chipset prefixes and noisy suffixes from audio descriptions
+    fn clean_device_name(raw_desc: &str) -> String {
+        let mut desc = raw_desc.trim().to_string();
+
+        let prefixes_to_remove = [
+            "700 Series Chipset Family HD Audio Controller ",
+            "600 Series Chipset Family HD Audio Controller ",
+            "500 Series Chipset Family HD Audio Controller ",
+            "400 Series Chipset Family HD Audio Controller ",
+            "300 Series Chipset Family HD Audio Controller ",
+            "200 Series Chipset Family HD Audio Controller ",
+            "100 Series Chipset Family HD Audio Controller ",
+            "Family HD Audio Controller ",
+            "High Definition Audio Controller ",
+            "HD Audio Controller ",
+            "Built-in Audio ",
+            "Intel Corporation ",
+            "Advanced Micro Devices, Inc. [AMD] ",
+            "NVIDIA Corporation ",
+            "Audio Controller ",
+        ];
+
+        for prefix in &prefixes_to_remove {
+            if desc.starts_with(prefix) {
+                desc = desc[prefix.len()..].to_string();
+            }
+        }
+
+        if desc.ends_with(" Output") {
+            desc = desc[..desc.len() - " Output".len()].to_string();
+        }
+
+        if desc.eq_ignore_ascii_case("speaker") {
+            desc = "Speakers".to_string();
+        }
+
+        if desc.is_empty() {
+            return raw_desc.to_string();
+        }
+
+        desc
     }
 
     fn get_default_sink_name() -> String {
