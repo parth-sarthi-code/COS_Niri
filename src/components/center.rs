@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]
@@ -182,6 +183,29 @@ impl CenterSection {
         }
     }
 
+    /// Launch an application instantly without shell overhead using TaskWorker
+    pub fn launch_app(exec_cmd: &str) {
+        let clean_cmd = exec_cmd
+            .split_whitespace()
+            .filter(|arg| !arg.starts_with('%'))
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        let parts: Vec<&str> = clean_cmd.split_whitespace().collect();
+        if parts.is_empty() {
+            return;
+        }
+
+        let program = parts[0].to_string();
+        let args: Vec<String> = parts[1..].iter().map(|s| s.to_string()).collect();
+
+        crate::services::worker::TaskWorker::dispatch(move || {
+            let _ = Command::new(&program)
+                .args(&args)
+                .spawn();
+        });
+    }
+
     /// Refresh dock icons based on live open windows from Niri and parsed Desktop entries.
     pub fn update_dock(windows: &[Window]) {
         CENTER_BOX.with(|cell| {
@@ -245,13 +269,7 @@ impl CenterSection {
                         if let Some(id) = focus_id {
                             NiriIpcClient::focus_window(id);
                         } else {
-                            let cmd = exec_cmd.clone();
-                            std::thread::spawn(move || {
-                                let _ = std::process::Command::new("sh")
-                                    .arg("-c")
-                                    .arg(&cmd)
-                                    .spawn();
-                            });
+                            Self::launch_app(&exec_cmd);
                         }
                     });
 
