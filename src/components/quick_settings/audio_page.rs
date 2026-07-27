@@ -1,6 +1,8 @@
-use crate::services::audio::AudioService;
+use crate::services::audio::{AudioService, AudioSink};
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Label, Orientation, ScrolledWindow};
+use std::sync::mpsc;
+use std::thread;
 
 pub struct AudioPage {
     pub container: GtkBox,
@@ -45,40 +47,62 @@ impl AudioPage {
         let list_box = GtkBox::new(Orientation::Vertical, 4);
         list_box.add_css_class("qs-subpage-list");
 
-        let sinks = AudioService::get_sinks();
-        for sink in sinks {
-            let item_btn = Button::new();
-            item_btn.add_css_class("qs-list-item");
-            if sink.is_default {
-                item_btn.add_css_class("active");
+        let loading_lbl = Label::new(Some("Loading audio devices..."));
+        loading_lbl.add_css_class("qs-subpage-empty");
+        list_box.append(&loading_lbl);
+
+        let (sender, receiver) = mpsc::channel::<Vec<AudioSink>>();
+        let list_box_clone = list_box.clone();
+
+        thread::spawn(move || {
+            let sinks = AudioService::get_sinks();
+            let _ = sender.send(sinks);
+        });
+
+        glib::idle_add_local(move || {
+            if let Ok(sinks) = receiver.try_recv() {
+                while let Some(child) = list_box_clone.first_child() {
+                    list_box_clone.remove(&child);
+                }
+
+                for sink in sinks {
+                    let item_btn = Button::new();
+                    item_btn.add_css_class("qs-list-item");
+                    if sink.is_default {
+                        item_btn.add_css_class("active");
+                    }
+
+                    let row = GtkBox::new(Orientation::Horizontal, 8);
+                    let icon = Label::new(Some("\u{e050}")); // speaker icon
+                    icon.add_css_class("ms-icon");
+                    row.append(&icon);
+
+                    let desc_lbl = Label::new(Some(&sink.description));
+                    desc_lbl.add_css_class("qs-list-title");
+                    desc_lbl.set_hexpand(true);
+                    desc_lbl.set_halign(gtk4::Align::Start);
+                    row.append(&desc_lbl);
+
+                    if sink.is_default {
+                        let check_icon = Label::new(Some("\u{e5ca}")); // check icon
+                        check_icon.add_css_class("ms-icon");
+                        row.append(&check_icon);
+                    }
+
+                    item_btn.set_child(Some(&row));
+
+                    let sink_name = sink.name.clone();
+                    item_btn.connect_clicked(move |_| {
+                        AudioService::set_default_sink(&sink_name);
+                    });
+
+                    list_box_clone.append(&item_btn);
+                }
+                glib::ControlFlow::Break
+            } else {
+                glib::ControlFlow::Continue
             }
-
-            let row = GtkBox::new(Orientation::Horizontal, 8);
-            let icon = Label::new(Some("\u{e050}")); // speaker icon
-            icon.add_css_class("ms-icon");
-            row.append(&icon);
-
-            let desc_lbl = Label::new(Some(&sink.description));
-            desc_lbl.add_css_class("qs-list-title");
-            desc_lbl.set_hexpand(true);
-            desc_lbl.set_halign(gtk4::Align::Start);
-            row.append(&desc_lbl);
-
-            if sink.is_default {
-                let check_icon = Label::new(Some("\u{e5ca}")); // check icon
-                check_icon.add_css_class("ms-icon");
-                row.append(&check_icon);
-            }
-
-            item_btn.set_child(Some(&row));
-
-            let sink_name = sink.name.clone();
-            item_btn.connect_clicked(move |_| {
-                AudioService::set_default_sink(&sink_name);
-            });
-
-            list_box.append(&item_btn);
-        }
+        });
 
         scrolled.set_child(Some(&list_box));
         container.append(&scrolled);

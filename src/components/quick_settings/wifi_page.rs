@@ -1,6 +1,8 @@
-use crate::services::network::NetworkService;
+use crate::services::network::{NetworkService, WifiNetwork};
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Label, Orientation, ScrolledWindow, Switch};
+use std::sync::mpsc;
+use std::thread;
 
 pub struct WifiPage {
     pub container: GtkBox,
@@ -14,7 +16,7 @@ impl WifiPage {
         let container = GtkBox::new(Orientation::Vertical, 8);
         container.add_css_class("qs-subpage");
 
-        // Header: Back Arrow + "Wi-Fi" Title + Power Switch
+        // Header: Back Arrow + "Network" Title + Power Switch
         let header = GtkBox::new(Orientation::Horizontal, 8);
         header.add_css_class("qs-subpage-header");
 
@@ -55,43 +57,65 @@ impl WifiPage {
         list_box.add_css_class("qs-subpage-list");
 
         if is_on {
-            let networks = NetworkService::scan_networks();
-            if networks.is_empty() {
-                let empty_lbl = Label::new(Some("Searching for networks..."));
-                empty_lbl.add_css_class("qs-subpage-empty");
-                list_box.append(&empty_lbl);
-            } else {
-                for net in networks {
-                    let item_btn = Button::new();
-                    item_btn.add_css_class("qs-list-item");
+            let loading_lbl = Label::new(Some("Scanning networks..."));
+            loading_lbl.add_css_class("qs-subpage-empty");
+            list_box.append(&loading_lbl);
 
-                    let row = GtkBox::new(Orientation::Horizontal, 8);
-                    let icon = Label::new(Some("\u{e63e}")); // wifi icon
-                    icon.add_css_class("ms-icon");
-                    row.append(&icon);
+            let (sender, receiver) = mpsc::channel::<Vec<WifiNetwork>>();
+            let list_box_clone = list_box.clone();
 
-                    let ssid_lbl = Label::new(Some(&net.ssid));
-                    ssid_lbl.add_css_class("qs-list-title");
-                    ssid_lbl.set_hexpand(true);
-                    ssid_lbl.set_halign(gtk4::Align::Start);
-                    row.append(&ssid_lbl);
+            thread::spawn(move || {
+                let networks = NetworkService::scan_networks();
+                let _ = sender.send(networks);
+            });
 
-                    if net.is_connected {
-                        let conn_lbl = Label::new(Some("Connected"));
-                        conn_lbl.add_css_class("qs-list-connected");
-                        row.append(&conn_lbl);
+            glib::idle_add_local(move || {
+                if let Ok(networks) = receiver.try_recv() {
+                    while let Some(child) = list_box_clone.first_child() {
+                        list_box_clone.remove(&child);
                     }
 
-                    item_btn.set_child(Some(&row));
+                    if networks.is_empty() {
+                        let empty_lbl = Label::new(Some("No networks found"));
+                        empty_lbl.add_css_class("qs-subpage-empty");
+                        list_box_clone.append(&empty_lbl);
+                    } else {
+                        for net in networks {
+                            let item_btn = Button::new();
+                            item_btn.add_css_class("qs-list-item");
 
-                    let ssid_clone = net.ssid.clone();
-                    item_btn.connect_clicked(move |_| {
-                        NetworkService::connect_network(&ssid_clone, None);
-                    });
+                            let row = GtkBox::new(Orientation::Horizontal, 8);
+                            let icon = Label::new(Some("\u{e63e}")); // wifi icon
+                            icon.add_css_class("ms-icon");
+                            row.append(&icon);
 
-                    list_box.append(&item_btn);
+                            let ssid_lbl = Label::new(Some(&net.ssid));
+                            ssid_lbl.add_css_class("qs-list-title");
+                            ssid_lbl.set_hexpand(true);
+                            ssid_lbl.set_halign(gtk4::Align::Start);
+                            row.append(&ssid_lbl);
+
+                            if net.is_connected {
+                                let conn_lbl = Label::new(Some("Connected"));
+                                conn_lbl.add_css_class("qs-list-connected");
+                                row.append(&conn_lbl);
+                            }
+
+                            item_btn.set_child(Some(&row));
+
+                            let ssid_clone = net.ssid.clone();
+                            item_btn.connect_clicked(move |_| {
+                                NetworkService::connect_network(&ssid_clone, None);
+                            });
+
+                            list_box_clone.append(&item_btn);
+                        }
+                    }
+                    glib::ControlFlow::Break
+                } else {
+                    glib::ControlFlow::Continue
                 }
-            }
+            });
         } else {
             let off_lbl = Label::new(Some("Wi-Fi is turned off"));
             off_lbl.add_css_class("qs-subpage-empty");

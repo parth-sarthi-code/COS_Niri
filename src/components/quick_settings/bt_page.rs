@@ -1,6 +1,8 @@
-use crate::services::bluetooth::BluetoothService;
+use crate::services::bluetooth::{BluetoothDevice, BluetoothService};
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Label, Orientation, ScrolledWindow, Switch};
+use std::sync::mpsc;
+use std::thread;
 
 pub struct BtPage {
     pub container: GtkBox,
@@ -55,44 +57,66 @@ impl BtPage {
         list_box.add_css_class("qs-subpage-list");
 
         if is_on {
-            let devices = BluetoothService::get_devices();
-            if devices.is_empty() {
-                let empty_lbl = Label::new(Some("No Bluetooth devices found"));
-                empty_lbl.add_css_class("qs-subpage-empty");
-                list_box.append(&empty_lbl);
-            } else {
-                for dev in devices {
-                    let item_btn = Button::new();
-                    item_btn.add_css_class("qs-list-item");
+            let loading_lbl = Label::new(Some("Searching Bluetooth devices..."));
+            loading_lbl.add_css_class("qs-subpage-empty");
+            list_box.append(&loading_lbl);
 
-                    let row = GtkBox::new(Orientation::Horizontal, 8);
-                    let icon = Label::new(Some("\u{e1a7}")); // bluetooth icon
-                    icon.add_css_class("ms-icon");
-                    row.append(&icon);
+            let (sender, receiver) = mpsc::channel::<Vec<BluetoothDevice>>();
+            let list_box_clone = list_box.clone();
 
-                    let name_lbl = Label::new(Some(&dev.name));
-                    name_lbl.add_css_class("qs-list-title");
-                    name_lbl.set_hexpand(true);
-                    name_lbl.set_halign(gtk4::Align::Start);
-                    row.append(&name_lbl);
+            thread::spawn(move || {
+                let devices = BluetoothService::get_devices();
+                let _ = sender.send(devices);
+            });
 
-                    if dev.is_connected {
-                        let conn_lbl = Label::new(Some("Connected"));
-                        conn_lbl.add_css_class("qs-list-connected");
-                        row.append(&conn_lbl);
+            glib::idle_add_local(move || {
+                if let Ok(devices) = receiver.try_recv() {
+                    while let Some(child) = list_box_clone.first_child() {
+                        list_box_clone.remove(&child);
                     }
 
-                    item_btn.set_child(Some(&row));
+                    if devices.is_empty() {
+                        let empty_lbl = Label::new(Some("No Bluetooth devices found"));
+                        empty_lbl.add_css_class("qs-subpage-empty");
+                        list_box_clone.append(&empty_lbl);
+                    } else {
+                        for dev in devices {
+                            let item_btn = Button::new();
+                            item_btn.add_css_class("qs-list-item");
 
-                    let mac = dev.mac.clone();
-                    let is_conn = dev.is_connected;
-                    item_btn.connect_clicked(move |_| {
-                        BluetoothService::toggle_device_connection(&mac, is_conn);
-                    });
+                            let row = GtkBox::new(Orientation::Horizontal, 8);
+                            let icon = Label::new(Some("\u{e1a7}")); // bluetooth icon
+                            icon.add_css_class("ms-icon");
+                            row.append(&icon);
 
-                    list_box.append(&item_btn);
+                            let name_lbl = Label::new(Some(&dev.name));
+                            name_lbl.add_css_class("qs-list-title");
+                            name_lbl.set_hexpand(true);
+                            name_lbl.set_halign(gtk4::Align::Start);
+                            row.append(&name_lbl);
+
+                            if dev.is_connected {
+                                let conn_lbl = Label::new(Some("Connected"));
+                                conn_lbl.add_css_class("qs-list-connected");
+                                row.append(&conn_lbl);
+                            }
+
+                            item_btn.set_child(Some(&row));
+
+                            let mac = dev.mac.clone();
+                            let is_conn = dev.is_connected;
+                            item_btn.connect_clicked(move |_| {
+                                BluetoothService::toggle_device_connection(&mac, is_conn);
+                            });
+
+                            list_box_clone.append(&item_btn);
+                        }
+                    }
+                    glib::ControlFlow::Break
+                } else {
+                    glib::ControlFlow::Continue
                 }
-            }
+            });
         } else {
             let off_lbl = Label::new(Some("Bluetooth is turned off"));
             off_lbl.add_css_class("qs-subpage-empty");

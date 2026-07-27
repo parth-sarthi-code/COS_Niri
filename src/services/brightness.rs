@@ -1,21 +1,31 @@
 use std::process::Command;
+use std::thread;
 
 pub struct BrightnessService;
 
 impl BrightnessService {
-    /// Get screen brightness percentage (0..100)
+    /// Get current brightness percentage (0..100)
     pub fn get_brightness() -> u32 {
-        if let Ok(output) = Command::new("brightnessctl").arg("g").output() {
-            let curr = String::from_utf8_lossy(&output.stdout)
+        if let Ok(output) = Command::new("brightnessctl")
+            .env("LC_ALL", "C")
+            .arg("g")
+            .output()
+        {
+            let curr: f32 = String::from_utf8_lossy(&output.stdout)
                 .trim()
-                .parse::<f32>()
+                .parse()
                 .unwrap_or(0.0);
 
-            if let Ok(max_out) = Command::new("brightnessctl").arg("m").output() {
-                let max = String::from_utf8_lossy(&max_out.stdout)
+            if let Ok(max_output) = Command::new("brightnessctl")
+                .env("LC_ALL", "C")
+                .arg("m")
+                .output()
+            {
+                let max: f32 = String::from_utf8_lossy(&max_output.stdout)
                     .trim()
-                    .parse::<f32>()
+                    .parse()
                     .unwrap_or(1.0);
+
                 if max > 0.0 {
                     return ((curr / max) * 100.0).round() as u32;
                 }
@@ -24,9 +34,14 @@ impl BrightnessService {
         100
     }
 
-    /// Set screen brightness percentage (0..100)
+    /// Set brightness percentage (0..100) asynchronously without blocking UI
     pub fn set_brightness(pct: u32) {
         let val_str = format!("{pct}%");
-        let _ = Command::new("brightnessctl").arg("set").arg(val_str).output();
+        thread::spawn(move || {
+            let _ = Command::new("brightnessctl")
+                .env("LC_ALL", "C")
+                .args(["set", &val_str])
+                .output();
+        });
     }
 }
