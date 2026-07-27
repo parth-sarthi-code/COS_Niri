@@ -1,5 +1,6 @@
 use crate::services::bluetooth::BluetoothService;
 use crate::services::network::NetworkService;
+use crate::services::night_light::NightLightService;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Grid, Label, Orientation};
 use std::process::Command;
@@ -40,9 +41,21 @@ impl GridSection {
             &wifi_status,
             wifi_enabled,
             true, // Has sub-panel arrow
-            move || {
+            move |btn, sub_lbl| {
                 let curr = NetworkService::is_wifi_enabled();
-                NetworkService::set_wifi_enabled(!curr);
+                let new_state = !curr;
+                NetworkService::set_wifi_enabled(new_state);
+                if new_state {
+                    btn.add_css_class("active");
+                    if let Some(lbl) = sub_lbl {
+                        lbl.set_text("Connecting...");
+                    }
+                } else {
+                    btn.remove_css_class("active");
+                    if let Some(lbl) = sub_lbl {
+                        lbl.set_text("Off");
+                    }
+                }
             },
             open_wifi_page,
         );
@@ -58,9 +71,21 @@ impl GridSection {
             bt_status,
             bt_enabled,
             true, // Has sub-panel arrow
-            move || {
+            move |btn, sub_lbl| {
                 let curr = BluetoothService::is_bluetooth_enabled();
-                BluetoothService::set_bluetooth_enabled(!curr);
+                let new_state = !curr;
+                BluetoothService::set_bluetooth_enabled(new_state);
+                if new_state {
+                    btn.add_css_class("active");
+                    if let Some(lbl) = sub_lbl {
+                        lbl.set_text("On");
+                    }
+                } else {
+                    btn.remove_css_class("active");
+                    if let Some(lbl) = sub_lbl {
+                        lbl.set_text("Off");
+                    }
+                }
             },
             open_bt_page,
         );
@@ -73,7 +98,7 @@ impl GridSection {
             "On, all apps",
             true,
             false,
-            || {
+            |_btn, _lbl| {
                 let _ = Command::new("swaync-client").args(["-t", "-sw"]).spawn();
             },
             || {},
@@ -83,14 +108,28 @@ impl GridSection {
         // --- ROW 1 ---
 
         // 4. Night Light Tile (Col 0, Row 1)
+        let is_night_on = NightLightService::is_enabled();
+        let night_status = if is_night_on { "On" } else { "Off" };
+
         let night_tile = Self::create_feature_tile(
             "\u{e51c}", // night light icon
             "Night Light",
-            "Off",
+            night_status,
+            is_night_on,
             false,
-            false,
-            || {
-                let _ = Command::new("sh").arg("-c").arg("gammastep -O 4500 || wlsunset -t 4500").spawn();
+            move |btn, sub_lbl| {
+                let new_state = NightLightService::toggle();
+                if new_state {
+                    btn.add_css_class("active");
+                    if let Some(lbl) = sub_lbl {
+                        lbl.set_text("On");
+                    }
+                } else {
+                    btn.remove_css_class("active");
+                    if let Some(lbl) = sub_lbl {
+                        lbl.set_text("Off");
+                    }
+                }
             },
             || {},
         );
@@ -103,7 +142,7 @@ impl GridSection {
             "",
             false,
             false,
-            || {
+            |_btn, _lbl| {
                 let _ = Command::new("niri").args(["msg", "action", "screenshot"]).spawn();
             },
             || {},
@@ -117,7 +156,7 @@ impl GridSection {
             "",
             false,
             false,
-            || {},
+            |_btn, _lbl| {},
             || {},
         );
         grid.attach(&cast_tile, 2, 1, 1, 1);
@@ -135,7 +174,7 @@ impl GridSection {
         on_arrow: FArrow,
     ) -> GtkBox
     where
-        FToggle: Fn() + 'static,
+        FToggle: Fn(&Button, &Option<Label>) + 'static,
         FArrow: Fn() + 'static,
     {
         let tile_box = GtkBox::new(Orientation::Vertical, 4);
@@ -159,9 +198,6 @@ impl GridSection {
         icon.set_halign(gtk4::Align::Center);
         icon.set_valign(gtk4::Align::Center);
         circle_btn.set_child(Some(&icon));
-        circle_btn.connect_clicked(move |_| {
-            on_toggle();
-        });
 
         tile_box.append(&circle_btn);
 
@@ -190,11 +226,21 @@ impl GridSection {
 
         tile_box.append(&text_box);
 
-        if !sub_status.is_empty() {
-            let sub_label = Label::new(Some(sub_status));
-            sub_label.add_css_class("qs-tile-sub");
-            tile_box.append(&sub_label);
-        }
+        let sub_label = if !sub_status.is_empty() {
+            let lbl = Label::new(Some(sub_status));
+            lbl.add_css_class("qs-tile-sub");
+            tile_box.append(&lbl);
+            Some(lbl)
+        } else {
+            None
+        };
+
+        // Wire click listener with circle_btn and sub_label references
+        let btn_clone = circle_btn.clone();
+        let sub_lbl_clone = sub_label.clone();
+        circle_btn.connect_clicked(move |_| {
+            on_toggle(&btn_clone, &sub_lbl_clone);
+        });
 
         tile_box
     }
