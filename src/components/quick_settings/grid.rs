@@ -4,6 +4,9 @@ use crate::services::night_light::NightLightService;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Grid, Label, Orientation};
 use std::process::Command;
+use std::rc::Rc;
+use std::sync::mpsc;
+use std::thread;
 
 pub struct GridSection {
     pub container: Grid,
@@ -180,44 +183,59 @@ impl GridSection {
         }
     }
 
-    /// Refresh live state for all tiles
-    pub fn refresh(&self) {
-        // Wi-Fi Tile
-        let wifi_on = NetworkService::is_wifi_enabled();
-        let wifi_ssid = NetworkService::get_active_ssid();
-        if let Some(ssid) = wifi_ssid {
-            self.wifi_btn.add_css_class("active");
-            self.wifi_title.set_text(&ssid);
-            self.wifi_sub.set_text("Connected");
-        } else if wifi_on {
-            self.wifi_btn.remove_css_class("active");
-            self.wifi_title.set_text("Wi-Fi");
-            self.wifi_sub.set_text("Disconnected");
-        } else {
-            self.wifi_btn.remove_css_class("active");
-            self.wifi_title.set_text("Wi-Fi");
-            self.wifi_sub.set_text("Off");
-        }
+    /// Refresh live state asynchronously in background worker thread to ensure 0ms popup presentation
+    pub fn async_refresh(grid_rc: Rc<Self>) {
+        let (sender, receiver) = mpsc::channel::<(bool, Option<String>, bool, bool)>();
 
-        // Bluetooth Tile
-        let bt_on = BluetoothService::is_bluetooth_enabled();
-        if bt_on {
-            self.bt_btn.add_css_class("active");
-            self.bt_sub.set_text("On");
-        } else {
-            self.bt_btn.remove_css_class("active");
-            self.bt_sub.set_text("Off");
-        }
+        thread::spawn(move || {
+            let wifi_on = NetworkService::is_wifi_enabled();
+            let wifi_ssid = NetworkService::get_active_ssid();
+            let bt_on = BluetoothService::is_bluetooth_enabled();
+            let night_on = NightLightService::is_enabled();
 
-        // Night Light Tile
-        let night_on = NightLightService::is_enabled();
-        if night_on {
-            self.night_btn.add_css_class("active");
-            self.night_sub.set_text("On");
-        } else {
-            self.night_btn.remove_css_class("active");
-            self.night_sub.set_text("Off");
-        }
+            let _ = sender.send((wifi_on, wifi_ssid, bt_on, night_on));
+        });
+
+        glib::idle_add_local(move || {
+            if let Ok((wifi_on, wifi_ssid, bt_on, night_on)) = receiver.try_recv() {
+                // Wi-Fi Tile
+                if let Some(ssid) = wifi_ssid {
+                    grid_rc.wifi_btn.add_css_class("active");
+                    grid_rc.wifi_title.set_text(&ssid);
+                    grid_rc.wifi_sub.set_text("Connected");
+                } else if wifi_on {
+                    grid_rc.wifi_btn.remove_css_class("active");
+                    grid_rc.wifi_title.set_text("Wi-Fi");
+                    grid_rc.wifi_sub.set_text("Disconnected");
+                } else {
+                    grid_rc.wifi_btn.remove_css_class("active");
+                    grid_rc.wifi_title.set_text("Wi-Fi");
+                    grid_rc.wifi_sub.set_text("Off");
+                }
+
+                // Bluetooth Tile
+                if bt_on {
+                    grid_rc.bt_btn.add_css_class("active");
+                    grid_rc.bt_sub.set_text("On");
+                } else {
+                    grid_rc.bt_btn.remove_css_class("active");
+                    grid_rc.bt_sub.set_text("Off");
+                }
+
+                // Night Light Tile
+                if night_on {
+                    grid_rc.night_btn.add_css_class("active");
+                    grid_rc.night_sub.set_text("On");
+                } else {
+                    grid_rc.night_btn.remove_css_class("active");
+                    grid_rc.night_sub.set_text("Off");
+                }
+
+                glib::ControlFlow::Break
+            } else {
+                glib::ControlFlow::Continue
+            }
+        });
     }
 
     fn create_feature_tile<FToggle, FArrow>(

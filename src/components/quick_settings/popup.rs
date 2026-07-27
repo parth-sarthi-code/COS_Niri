@@ -137,14 +137,14 @@ impl QuickSettingsPopup {
         Self { window, stack, grid }
     }
 
-    /// Toggle visibility of the Quick Settings popup panel
+    /// Toggle visibility of the Quick Settings popup panel instantly (0ms presentation)
     pub fn toggle(&self) {
         if self.window.is_visible() {
             self.window.set_visible(false);
         } else {
-            self.grid.refresh();
             self.stack.set_visible_child_name("main");
             self.window.present();
+            GridSection::async_refresh(Rc::clone(&self.grid));
         }
     }
 }

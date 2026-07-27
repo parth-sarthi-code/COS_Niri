@@ -1,5 +1,6 @@
 use crate::components::center::CenterSection;
 use crate::components::left::LeftSection;
+use crate::components::quick_settings::grid::GridSection;
 use crate::components::quick_settings::popup::QuickSettingsPopup;
 use crate::components::right::RightSection;
 use crate::services::bluetooth::BluetoothService;
@@ -50,7 +51,7 @@ impl BarWindow {
         let qs_net = Rc::clone(&quick_settings);
         glib::idle_add_local(move || {
             if net_rx.try_recv().is_ok() {
-                qs_net.grid.refresh();
+                GridSection::async_refresh(Rc::clone(&qs_net.grid));
             }
             glib::ControlFlow::Continue
         });
@@ -64,7 +65,7 @@ impl BarWindow {
         let qs_bt = Rc::clone(&quick_settings);
         glib::idle_add_local(move || {
             if bt_rx.try_recv().is_ok() {
-                qs_bt.grid.refresh();
+                GridSection::async_refresh(Rc::clone(&qs_bt.grid));
             }
             glib::ControlFlow::Continue
         });
