@@ -1,0 +1,513 @@
+/* ====================================================
+   ChromeOS Niri Bar — Material Design 3 / Material You Dark
+   Icon font:  Material Symbols Rounded
+   UI font:    Roboto
+   ==================================================== */
+
+/* --- Targeted element resets ----------------------- */
+window.cos-bar-window,
+box.cos-bar-container,
+box.left-section,
+box.center-section,
+box.right-section,
+box.workspace-container,
+box.qs-pill-inner,
+box.icon-bubble,
+box.launcher-bubble,
+box.dot-active,
+box.dot-running,
+box.dot-hidden {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-family: "Roboto", "Cantarell", sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: #e3e2e6;
+}
+
+button.dock-item,
+button.icon-btn-circle,
+button.launcher-btn,
+button.ws-pill,
+button.qs-pill {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-family: "Roboto", "Cantarell", sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: #e3e2e6;
+}
+
+label {
+    font-family: "Roboto", "Cantarell", sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: #e3e2e6;
+}
+
+/* --- Material Symbols Icon Labels (Filled FILL=1) -- */
+label.ms-icon {
+    font-family: "Material Symbols Rounded";
+    font-size: 20px;
+    font-weight: 400;
+    color: #e3e2e6;
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+label.ms-icon-sm {
+    font-size: 17px;
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+/* --- Main Bar Window & Container -------------------- */
+window.cos-bar-window {
+    background-color: transparent;
+}
+
+box.cos-bar-container {
+    background-color: rgba(22, 22, 25, 0.82);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0 12px;
+    min-height: 48px;
+}
+
+/* --- Vertical Separators -------------------------- */
+separator.shelf-sep {
+    background-color: rgba(255, 255, 255, 0.12);
+    min-width: 1px;
+    min-height: 24px;
+    margin: 0 8px;
+}
+
+/* === LEFT SECTION ================================= */
+box.left-section {
+    min-height: 48px;
+}
+
+/* Launcher / Stylus Circular Icon Buttons */
+button.icon-btn-circle {
+    background-color: transparent;
+    border-radius: 50%;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    transition: background-color 180ms ease;
+}
+
+button.icon-btn-circle:hover {
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+button.icon-btn-circle:active {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Circular bubbles (36x36) */
+box.launcher-bubble,
+box.icon-bubble {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    min-width: 36px;
+    min-height: 36px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 180ms ease;
+}
+
+button.icon-btn-circle:hover box.launcher-bubble,
+button.icon-btn-circle:hover box.icon-bubble,
+button.dock-item:hover box.icon-bubble {
+    background-color: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Workspace / Desks Pill Container */
+box.workspace-container {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 18px;
+    padding: 3px 4px;
+    margin: 0 2px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+button.ws-pill {
+    background-color: transparent;
+    border-radius: 13px;
+    min-width: 26px;
+    min-height: 26px;
+    padding: 0 7px;
+    margin: 0 1px;
+    border: none;
+    color: #cac4d0;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: "Roboto", sans-serif;
+    transition: all 180ms ease;
+}
+
+button.ws-pill:hover {
+    background-color: rgba(255, 255, 255, 0.10);
+    color: #ffffff;
+}
+
+button.ws-pill.active {
+    background-color: #b4c5ff;
+    color: #1a1b38;
+    font-weight: 700;
+}
+
+/* === CENTER SECTION — App Dock =================== */
+box.center-section {
+    min-height: 48px;
+}
+
+button.dock-item {
+    background-color: transparent;
+    border-radius: 18px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    margin: 0 2px;
+    border: none;
+    transition: background-color 150ms ease;
+}
+
+button.dock-item:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+button.dock-item.focused box.icon-bubble {
+    background-color: rgba(180, 197, 255, 0.20);
+    border-color: rgba(180, 197, 255, 0.30);
+}
+
+/* Dot Indicators */
+box.dot-active {
+    background-color: #b4c5ff;
+    border-radius: 3px;
+    min-width: 14px;
+    min-height: 3px;
+    margin-top: 2px;
+}
+
+box.dot-running {
+    background-color: #cac4d0;
+    border-radius: 50%;
+    min-width: 4px;
+    min-height: 4px;
+    margin-top: 2px;
+}
+
+box.dot-hidden {
+    background-color: transparent;
+    min-width: 4px;
+    min-height: 4px;
+    margin-top: 2px;
+}
+
+/* === RIGHT SECTION ================================ */
+box.right-section {
+    min-height: 48px;
+}
+
+label.date-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #cac4d0;
+    font-family: "Roboto", sans-serif;
+    margin: 0 6px;
+}
+
+/* Quick Settings Status Pill */
+button.qs-pill {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 0 12px;
+    min-height: 36px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    transition: background-color 180ms ease;
+}
+
+button.qs-pill:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+button.qs-pill:active {
+    background-color: rgba(255, 255, 255, 0.20);
+}
+
+box.qs-pill-inner {
+    min-height: 36px;
+}
+
+label.clock-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+    font-family: "Roboto", sans-serif;
+}
+
+label.qs-icon {
+    color: #e3e2e6;
+}
+
+/* === QUICK SETTINGS POPUP PANEL (ChromeOS Glassmorphism) === */
+window.qs-popup-window {
+    background-color: transparent;
+}
+
+box.qs-popup-container {
+    background-color: rgba(28, 27, 34, 0.92);
+    border-radius: 24px;
+    padding: 20px 24px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+    font-family: "Roboto", sans-serif;
+    color: #e3e2e6;
+}
+
+/* Separator lines */
+separator.qs-sep {
+    background-color: rgba(255, 255, 255, 0.08);
+    min-height: 1px;
+    margin: 8px 0;
+}
+
+/* --- High-Specificity GTK Button Resets --- */
+box.qs-popup-container button {
+    background-image: none;
+    border: none;
+    box-shadow: none;
+}
+
+/* --- Quick Settings Header --- */
+box.qs-header {
+    min-height: 36px;
+}
+
+box.qs-avatar-bubble {
+    background-color: rgba(255, 255, 255, 0.10);
+    border-radius: 50%;
+    min-width: 32px;
+    min-height: 32px;
+}
+
+box.qs-popup-container button.qs-signout-btn {
+    background-color: rgba(255, 255, 255, 0.10);
+    border-radius: 14px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #ffffff;
+    transition: background-color 150ms ease;
+}
+
+box.qs-popup-container button.qs-signout-btn:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+box.qs-popup-container button.qs-header-icon-btn {
+    background-color: rgba(255, 255, 255, 0.10);
+    border-radius: 50%;
+    min-width: 34px;
+    min-height: 34px;
+    padding: 0;
+    color: #e3e2e6;
+    transition: background-color 150ms ease;
+}
+
+box.qs-popup-container button.qs-header-icon-btn label {
+    color: #e3e2e6;
+}
+
+box.qs-popup-container button.qs-header-icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+/* --- Quick Settings Feature Grid --- */
+grid.qs-grid {
+    margin: 10px 0;
+}
+
+box.qs-tile {
+    padding: 4px;
+}
+
+box.qs-popup-container button.qs-tile-bubble {
+    background-color: rgba(255, 255, 255, 0.10);
+    color: #e3e2e6;
+    border-radius: 50%;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0;
+    transition: all 180ms ease;
+}
+
+box.qs-popup-container button.qs-tile-bubble label {
+    color: inherit;
+}
+
+box.qs-popup-container button.qs-tile-bubble:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Active Material You Pastel Blue Tile */
+box.qs-popup-container button.qs-tile-bubble.active {
+    background-color: #b4c5ff;
+    color: #1a1b38;
+}
+
+box.qs-popup-container button.qs-tile-bubble.active label {
+    color: #1a1b38;
+}
+
+label.qs-tile-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: #e3e2e6;
+    margin-top: 2px;
+}
+
+label.qs-tile-sub {
+    font-size: 11px;
+    color: #938f99;
+}
+
+box.qs-popup-container button.qs-tile-arrow {
+    background: none;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+    color: #c4c6d0;
+}
+
+/* --- Sliders Section --- */
+box.qs-sliders-section {
+    margin: 6px 0;
+}
+
+box.qs-popup-container button.qs-slider-icon-btn,
+box.qs-popup-container button.qs-slider-arrow-btn {
+    background-color: rgba(255, 255, 255, 0.10);
+    border-radius: 50%;
+    min-width: 34px;
+    min-height: 34px;
+    padding: 0;
+    color: #e3e2e6;
+    transition: background-color 150ms ease;
+}
+
+box.qs-popup-container button.qs-slider-icon-btn label,
+box.qs-popup-container button.qs-slider-arrow-btn label {
+    color: #e3e2e6;
+}
+
+box.qs-popup-container button.qs-slider-icon-btn:hover,
+box.qs-popup-container button.qs-slider-arrow-btn:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+scale.qs-slider trough {
+    background-color: rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    min-height: 10px;
+    border: none;
+    box-shadow: none;
+}
+
+scale.qs-slider highlight {
+    background-color: #b4c5ff;
+    border-radius: 10px;
+    min-height: 10px;
+    border: none;
+}
+
+scale.qs-slider slider {
+    background-color: #ffffff;
+    border-radius: 50%;
+    min-width: 18px;
+    min-height: 18px;
+    margin: -4px 0;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* --- Footer --- */
+box.qs-footer {
+    min-height: 28px;
+    margin-top: 6px;
+}
+
+label.qs-footer-text {
+    font-size: 12px;
+    color: #c4c6d0;
+}
+
+label.qs-footer-sep {
+    font-size: 12px;
+    color: #49454f;
+    margin: 0 4px;
+}
+
+/* --- Sub-pages --- */
+box.qs-subpage {
+    padding: 4px 0;
+}
+
+box.qs-subpage-header {
+    min-height: 36px;
+    margin-bottom: 8px;
+}
+
+label.qs-subpage-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+box.qs-subpage-list {
+    margin-top: 4px;
+}
+
+box.qs-popup-container button.qs-list-item {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 8px 12px;
+    margin: 2px 0;
+    border: none;
+    color: #e3e2e6;
+    transition: background-color 150ms ease;
+}
+
+box.qs-popup-container button.qs-list-item:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+box.qs-popup-container button.qs-list-item.active {
+    background-color: rgba(180, 197, 255, 0.20);
+    border: 1px solid rgba(180, 197, 255, 0.30);
+}
+
+label.qs-list-title {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+label.qs-list-connected {
+    font-size: 11px;
+    color: #b4c5ff;
+}
+
+label.qs-subpage-empty {
+    font-size: 13px;
+    color: #938f99;
+    padding: 20px;
+}
+
