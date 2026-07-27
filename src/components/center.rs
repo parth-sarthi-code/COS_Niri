@@ -99,34 +99,39 @@ impl CenterSection {
         }
     }
 
-    /// Scan system and Flatpak XDG directories for .desktop entries (Fuzzel style)
-    pub fn scan_desktop_entries() -> HashMap<String, DesktopEntry> {
-        let mut entries = HashMap::new();
-        let home = std::env::var("HOME").unwrap_or_default();
+    /// Scan system and Flatpak XDG directories for .desktop entries once at startup (cached in memory)
+    pub fn scan_desktop_entries() -> &'static HashMap<String, DesktopEntry> {
+        static DESKTOP_ENTRIES_CACHE: std::sync::OnceLock<HashMap<String, DesktopEntry>> =
+            std::sync::OnceLock::new();
 
-        let search_paths: Vec<PathBuf> = vec![
-            PathBuf::from("/usr/share/applications"),
-            PathBuf::from("/usr/local/share/applications"),
-            PathBuf::from(format!("{home}/.local/share/applications")),
-            // Flatpak export paths
-            PathBuf::from("/var/lib/flatpak/exports/share/applications"),
-            PathBuf::from(format!("{home}/.local/share/flatpak/exports/share/applications")),
-        ];
+        DESKTOP_ENTRIES_CACHE.get_or_init(|| {
+            let mut entries = HashMap::new();
+            let home = std::env::var("HOME").unwrap_or_default();
 
-        for path in search_paths {
-            if let Ok(read_dir) = fs::read_dir(path) {
-                for entry in read_dir.flatten() {
-                    let file_path = entry.path();
-                    if file_path.extension().and_then(|s| s.to_str()) == Some("desktop") {
-                        if let Some(desktop_entry) = Self::parse_desktop_file(&file_path) {
-                            entries.insert(desktop_entry.desktop_id.clone(), desktop_entry);
+            let search_paths: Vec<PathBuf> = vec![
+                PathBuf::from("/usr/share/applications"),
+                PathBuf::from("/usr/local/share/applications"),
+                PathBuf::from(format!("{home}/.local/share/applications")),
+                // Flatpak export paths
+                PathBuf::from("/var/lib/flatpak/exports/share/applications"),
+                PathBuf::from(format!("{home}/.local/share/flatpak/exports/share/applications")),
+            ];
+
+            for path in search_paths {
+                if let Ok(read_dir) = fs::read_dir(path) {
+                    for entry in read_dir.flatten() {
+                        let file_path = entry.path();
+                        if file_path.extension().and_then(|s| s.to_str()) == Some("desktop") {
+                            if let Some(desktop_entry) = Self::parse_desktop_file(&file_path) {
+                                entries.insert(desktop_entry.desktop_id.clone(), desktop_entry);
+                            }
                         }
                     }
                 }
             }
-        }
 
-        entries
+            entries
+        })
     }
 
     /// Parse a single .desktop file in pure Rust

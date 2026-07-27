@@ -25,10 +25,10 @@ impl BluetoothService {
         false
     }
 
-    /// Toggle Bluetooth adapter power ON/OFF asynchronously
+    /// Toggle Bluetooth adapter power ON/OFF asynchronously using worker thread
     pub fn set_bluetooth_enabled(enabled: bool) {
         let arg = if enabled { "on" } else { "off" };
-        thread::spawn(move || {
+        crate::services::worker::TaskWorker::dispatch(move || {
             let _ = Command::new("bluetoothctl")
                 .env("LC_ALL", "C")
                 .args(["power", arg])
@@ -78,10 +78,10 @@ impl BluetoothService {
         false
     }
 
-    /// Connect or disconnect Bluetooth device by MAC address asynchronously
+    /// Connect or disconnect Bluetooth device by MAC address asynchronously using worker thread
     pub fn toggle_device_connection(mac: &str, current_connected: bool) {
         let m = mac.to_string();
-        thread::spawn(move || {
+        crate::services::worker::TaskWorker::dispatch(move || {
             let action = if current_connected { "disconnect" } else { "connect" };
             let _ = Command::new("bluetoothctl")
                 .env("LC_ALL", "C")

@@ -1,5 +1,5 @@
+use crate::services::worker::TaskWorker;
 use std::process::Command;
-use std::thread;
 
 pub struct BrightnessService;
 
@@ -34,10 +34,10 @@ impl BrightnessService {
         100
     }
 
-    /// Set brightness percentage (0..100) asynchronously without blocking UI
+    /// Set brightness percentage (0..100) asynchronously using persistent worker thread
     pub fn set_brightness(pct: u32) {
         let val_str = format!("{pct}%");
-        thread::spawn(move || {
+        TaskWorker::dispatch(move || {
             let _ = Command::new("brightnessctl")
                 .env("LC_ALL", "C")
                 .args(["set", &val_str])

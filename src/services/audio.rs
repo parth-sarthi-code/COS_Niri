@@ -44,10 +44,10 @@ impl AudioService {
         50
     }
 
-    /// Set volume percentage (0..100) asynchronously without blocking UI
+    /// Set volume percentage (0..100) asynchronously using single persistent worker thread
     pub fn set_volume(pct: u32) {
         let val_str = format!("{pct}%");
-        thread::spawn(move || {
+        crate::services::worker::TaskWorker::dispatch(move || {
             let _ = Command::new("wpctl")
                 .env("LC_ALL", "C")
                 .args(["set-volume", "@DEFAULT_AUDIO_SINK@", &val_str])
@@ -68,9 +68,9 @@ impl AudioService {
         false
     }
 
-    /// Toggle mute asynchronously
+    /// Toggle mute asynchronously using single persistent worker thread
     pub fn toggle_mute() {
-        thread::spawn(move || {
+        crate::services::worker::TaskWorker::dispatch(move || {
             let _ = Command::new("wpctl")
                 .env("LC_ALL", "C")
                 .args(["set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
@@ -173,10 +173,10 @@ impl AudioService {
         String::new()
     }
 
-    /// Set active audio output sink asynchronously
+    /// Set active audio output sink asynchronously using persistent worker thread
     pub fn set_default_sink(sink_name: &str) {
         let name = sink_name.to_string();
-        thread::spawn(move || {
+        crate::services::worker::TaskWorker::dispatch(move || {
             let _ = Command::new("pactl")
                 .env("LC_ALL", "C")
                 .args(["set-default-sink", &name])

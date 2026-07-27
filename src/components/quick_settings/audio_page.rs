@@ -61,42 +61,80 @@ impl AudioPage {
 
         glib::idle_add_local(move || {
             if let Ok(sinks) = receiver.try_recv() {
-                while let Some(child) = list_box_clone.first_child() {
-                    list_box_clone.remove(&child);
+                // Collect existing GTK Button items for recycling
+                let mut existing_btns: Vec<Button> = Vec::new();
+                let mut curr = list_box_clone.first_child();
+                while let Some(child) = curr {
+                    if let Ok(btn) = child.clone().downcast::<Button>() {
+                        existing_btns.push(btn);
+                    }
+                    curr = child.next_sibling();
                 }
 
-                for sink in sinks {
-                    let item_btn = Button::new();
-                    item_btn.add_css_class("qs-list-item");
-                    if sink.is_default {
-                        item_btn.add_css_class("active");
+                if !existing_btns.is_empty() && existing_btns.len() == sinks.len() {
+                    // In-place widget recycling: update existing labels without destroying GTK widgets
+                    for (i, sink) in sinks.into_iter().enumerate() {
+                        let btn = &existing_btns[i];
+                        if sink.is_default {
+                            btn.add_css_class("active");
+                        } else {
+                            btn.remove_css_class("active");
+                        }
+
+                        if let Some(child_box) = btn.child().and_then(|c| c.downcast::<GtkBox>().ok()) {
+                            let mut b_curr = child_box.first_child();
+                            if let Some(icon) = b_curr {
+                                b_curr = icon.next_sibling();
+                            }
+                            if let Some(desc_lbl) = b_curr.and_then(|c| c.downcast::<Label>().ok()) {
+                                desc_lbl.set_text(&sink.description);
+                            }
+                        }
+
+                        let sink_name = sink.name.clone();
+                        btn.connect_clicked(move |_| {
+                            AudioService::set_default_sink(&sink_name);
+                        });
+                    }
+                } else {
+                    // Rebuild list if element count changed
+                    while let Some(child) = list_box_clone.first_child() {
+                        list_box_clone.remove(&child);
                     }
 
-                    let row = GtkBox::new(Orientation::Horizontal, 8);
-                    let icon = Label::new(Some("\u{e050}")); // speaker icon
-                    icon.add_css_class("ms-icon");
-                    row.append(&icon);
+                    for sink in sinks {
+                        let item_btn = Button::new();
+                        item_btn.add_css_class("qs-list-item");
+                        if sink.is_default {
+                            item_btn.add_css_class("active");
+                        }
 
-                    let desc_lbl = Label::new(Some(&sink.description));
-                    desc_lbl.add_css_class("qs-list-title");
-                    desc_lbl.set_hexpand(true);
-                    desc_lbl.set_halign(gtk4::Align::Start);
-                    row.append(&desc_lbl);
+                        let row = GtkBox::new(Orientation::Horizontal, 8);
+                        let icon = Label::new(Some("\u{e050}")); // speaker icon
+                        icon.add_css_class("ms-icon");
+                        row.append(&icon);
 
-                    if sink.is_default {
-                        let check_icon = Label::new(Some("\u{e5ca}")); // check icon
-                        check_icon.add_css_class("ms-icon");
-                        row.append(&check_icon);
+                        let desc_lbl = Label::new(Some(&sink.description));
+                        desc_lbl.add_css_class("qs-list-title");
+                        desc_lbl.set_hexpand(true);
+                        desc_lbl.set_halign(gtk4::Align::Start);
+                        row.append(&desc_lbl);
+
+                        if sink.is_default {
+                            let check_icon = Label::new(Some("\u{e5ca}")); // check icon
+                            check_icon.add_css_class("ms-icon");
+                            row.append(&check_icon);
+                        }
+
+                        item_btn.set_child(Some(&row));
+
+                        let sink_name = sink.name.clone();
+                        item_btn.connect_clicked(move |_| {
+                            AudioService::set_default_sink(&sink_name);
+                        });
+
+                        list_box_clone.append(&item_btn);
                     }
-
-                    item_btn.set_child(Some(&row));
-
-                    let sink_name = sink.name.clone();
-                    item_btn.connect_clicked(move |_| {
-                        AudioService::set_default_sink(&sink_name);
-                    });
-
-                    list_box_clone.append(&item_btn);
                 }
                 glib::ControlFlow::Break
             } else {

@@ -25,10 +25,10 @@ impl NetworkService {
         false
     }
 
-    /// Toggle Wi-Fi power ON/OFF asynchronously
+    /// Toggle Wi-Fi power ON/OFF asynchronously using worker thread
     pub fn set_wifi_enabled(enabled: bool) {
         let arg = if enabled { "on" } else { "off" };
-        thread::spawn(move || {
+        crate::services::worker::TaskWorker::dispatch(move || {
             let _ = Command::new("nmcli")
                 .env("LC_ALL", "C")
                 .args(["radio", "wifi", arg])
@@ -88,11 +88,11 @@ impl NetworkService {
         networks
     }
 
-    /// Connect to a Wi-Fi network asynchronously
+    /// Connect to a Wi-Fi network asynchronously using worker thread
     pub fn connect_network(ssid: &str, password: Option<&str>) {
         let s = ssid.to_string();
         let p = password.map(|pass| pass.to_string());
-        thread::spawn(move || {
+        crate::services::worker::TaskWorker::dispatch(move || {
             let mut cmd = Command::new("nmcli");
             cmd.env("LC_ALL", "C");
             cmd.args(["device", "wifi", "connect", &s]);
