@@ -147,6 +147,9 @@ impl GridSection {
         // Circular Icon Button
         let circle_btn = Button::new();
         circle_btn.add_css_class("qs-tile-bubble");
+        circle_btn.set_size_request(52, 52);
+        circle_btn.set_halign(gtk4::Align::Center);
+        circle_btn.set_valign(gtk4::Align::Center);
         if is_active {
             circle_btn.add_css_class("active");
         }

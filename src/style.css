@@ -342,8 +342,8 @@ box.qs-popup-container button.qs-tile-bubble {
     background-color: rgba(255, 255, 255, 0.10);
     color: #e3e2e6;
     border-radius: 50%;
-    min-width: 48px;
-    min-height: 48px;
+    min-width: 52px;
+    min-height: 52px;
     padding: 0;
     transition: all 180ms ease;
 }
@@ -415,28 +415,28 @@ box.qs-popup-container button.qs-slider-arrow-btn:hover {
 }
 
 scale.qs-slider trough {
-    background-color: rgba(255, 255, 255, 0.14);
-    border-radius: 10px;
-    min-height: 10px;
+    background-color: rgba(255, 255, 255, 0.16);
+    border-radius: 2px;
+    min-height: 4px;
     border: none;
     box-shadow: none;
 }
 
 scale.qs-slider highlight {
     background-color: #b4c5ff;
-    border-radius: 10px;
-    min-height: 10px;
+    border-radius: 2px;
+    min-height: 4px;
     border: none;
 }
 
 scale.qs-slider slider {
     background-color: #ffffff;
     border-radius: 50%;
-    min-width: 18px;
-    min-height: 18px;
-    margin: -4px 0;
+    min-width: 14px;
+    min-height: 14px;
+    margin: -5px 0;
     border: none;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
 }
 
 /* --- Footer --- */
