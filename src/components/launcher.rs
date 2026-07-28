@@ -29,6 +29,7 @@ impl LauncherPopup {
 
         // Do not yield to compositor exclusive zones (cover the bar)
         window.set_exclusive_zone(-1);
+        window.set_margin(Edge::Bottom, -48);
 
         window.add_css_class("launcher-popup-window");
 
@@ -58,11 +59,11 @@ impl LauncherPopup {
         grid_scroll.add_css_class("launcher-grid-scroll");
 
         let flowbox = FlowBox::new();
-        flowbox.set_max_children_per_line(6);
-        flowbox.set_min_children_per_line(6);
+        flowbox.set_max_children_per_line(8);
+        flowbox.set_min_children_per_line(8);
         flowbox.set_homogeneous(true);
-        flowbox.set_row_spacing(32);
-        flowbox.set_column_spacing(24);
+        flowbox.set_row_spacing(18);
+        flowbox.set_column_spacing(16);
         flowbox.set_selection_mode(gtk4::SelectionMode::None);
         flowbox.set_halign(gtk4::Align::Center);
         flowbox.add_css_class("launcher-flowbox");
@@ -133,7 +134,7 @@ impl LauncherPopup {
 
             let bubble = GtkBox::new(Orientation::Horizontal, 0);
             bubble.add_css_class("icon-bubble");
-            bubble.set_size_request(84, 84);
+            bubble.set_size_request(72, 72);
             bubble.set_halign(gtk4::Align::Center);
             bubble.set_valign(gtk4::Align::Center);
 
@@ -143,7 +144,7 @@ impl LauncherPopup {
             } else {
                 Image::from_icon_name(icon_str)
             };
-            icon.set_pixel_size(56);
+            icon.set_pixel_size(48);
             icon.set_halign(gtk4::Align::Center);
             icon.set_valign(gtk4::Align::Center);
             icon.set_hexpand(true);

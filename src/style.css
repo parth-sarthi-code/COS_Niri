@@ -736,7 +736,7 @@ window.launcher-popup-window {
 
 box.launcher-popup-container {
     background-color: rgba(15, 17, 26, 0.72);
-    padding: 80px 140px;
+    padding: 48px 96px 12px 96px;
     box-shadow: none;
     font-family: "Outfit", "Roboto", sans-serif;
     color: #ffffff;
@@ -781,7 +781,7 @@ button.launcher-app-item {
     border: none;
     box-shadow: none;
     border-radius: 24px;
-    padding: 16px 8px;
+    padding: 8px 4px;
     color: #ffffff;
     transition: all 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -793,7 +793,7 @@ button.launcher-app-item:hover {
 
 button.launcher-app-item box.icon-bubble {
     background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 20px;
+    border-radius: 18px;
     transition: all 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -804,7 +804,7 @@ button.launcher-app-item:hover box.icon-bubble {
 }
 
 label.launcher-app-name {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.9);
     margin-top: 8px;
