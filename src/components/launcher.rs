@@ -168,6 +168,7 @@ impl LauncherPopup {
 
             item_btn.connect_clicked(move |_| {
                 CenterSection::launch_app(&exec_cmd);
+                s_win.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
                 s_win.set_visible(false);
             });
 
@@ -192,10 +193,13 @@ impl LauncherPopup {
 
     pub fn toggle(&self) {
         if self.window.is_visible() {
+            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
             crate::services::animation::slide_down_close(&self.window, 56);
         } else {
+            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
             self.search_entry.set_text("");
             self.refresh_apps();
+            self.search_entry.grab_focus();
             crate::services::animation::slide_up_open(&self.window, 56);
         }
     }
