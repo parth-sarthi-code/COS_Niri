@@ -59,7 +59,7 @@ impl RightSection {
         date_btn.set_child(Some(&date_label));
 
         date_btn.connect_clicked(|_| {
-            let _ = std::process::Command::new("swaync-client").args(["-t", "-sw"]).spawn();
+            // Calendar integration slot
         });
         pill_group.append(&date_btn);
 
