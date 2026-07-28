@@ -103,8 +103,12 @@ impl BluetoothService {
             {
                 if let Some(stdout) = child.stdout.take() {
                     let reader = BufReader::new(stdout);
+                    let mut last_trigger = std::time::Instant::now() - std::time::Duration::from_secs(2);
                     for _line in reader.lines().flatten() {
-                        callback();
+                        if last_trigger.elapsed() >= std::time::Duration::from_millis(1000) {
+                            last_trigger = std::time::Instant::now();
+                            callback();
+                        }
                     }
                 }
             }

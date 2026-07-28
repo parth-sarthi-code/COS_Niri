@@ -47,29 +47,29 @@ impl BarWindow {
         // Instantiate Calendar floating popup
         let calendar = Rc::new(CalendarPopup::new(app));
 
-        // NetworkManager live event listener via channel
+        // NetworkManager live event listener via channel (event-driven)
         let (net_tx, net_rx) = mpsc::channel::<()>();
         NetworkService::listen_events(move || {
             let _ = net_tx.send(());
         });
 
         let qs_net = Rc::clone(&quick_settings);
-        glib::idle_add_local(move || {
-            if net_rx.try_recv().is_ok() {
+        glib::timeout_add_seconds_local(1, move || {
+            while net_rx.try_recv().is_ok() {
                 GridSection::async_refresh(Rc::clone(&qs_net.grid));
             }
             glib::ControlFlow::Continue
         });
 
-        // Bluetooth live event listener via channel
+        // Bluetooth live event listener via channel (event-driven)
         let (bt_tx, bt_rx) = mpsc::channel::<()>();
         BluetoothService::listen_events(move || {
             let _ = bt_tx.send(());
         });
 
         let qs_bt = Rc::clone(&quick_settings);
-        glib::idle_add_local(move || {
-            if bt_rx.try_recv().is_ok() {
+        glib::timeout_add_seconds_local(1, move || {
+            while bt_rx.try_recv().is_ok() {
                 GridSection::async_refresh(Rc::clone(&qs_bt.grid));
             }
             glib::ControlFlow::Continue
