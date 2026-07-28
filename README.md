@@ -14,7 +14,6 @@ This shell currently officially supports **Fedora** (tested on Fedora 44 Worksta
 Measured metrics of the compiled release bar at idle:
 *   **CPU (Idle)**: **0.0%**
 *   **Resident RAM (RSS)**: **~144 MB** (148,060 KB)
-*   **Virtual Memory (VIRT)**: **~3.48 GB** (3,645,976 KB)
 *   **Shared Memory (SHR)**: **~74 MB** (76,480 KB)
 
 ---
