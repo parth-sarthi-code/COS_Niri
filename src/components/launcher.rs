@@ -33,6 +33,19 @@ impl LauncherPopup {
 
         window.add_css_class("launcher-popup-window");
 
+        let key_controller = gtk4::EventControllerKey::new();
+        let win_c = window.clone();
+        key_controller.connect_key_pressed(move |_, keyval, _, _| {
+            if keyval == gtk4::gdk::Key::Escape {
+                win_c.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
+                crate::services::animation::slide_down_close(&win_c, 56);
+                gtk4::glib::Propagation::Stop
+            } else {
+                gtk4::glib::Propagation::Proceed
+            }
+        });
+        window.add_controller(key_controller);
+
         let container = GtkBox::new(Orientation::Vertical, 24);
         container.add_css_class("launcher-popup-container");
         container.set_hexpand(true);
