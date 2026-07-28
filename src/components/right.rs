@@ -141,23 +141,13 @@ impl RightSection {
         }
     }
 
-    /// Dynamic Wi-Fi icon code based on connection state & signal strength
+    /// Dynamic Wi-Fi icon code based on connection state
     pub fn get_wifi_icon_code() -> &'static str {
         if !NetworkService::is_wifi_enabled() {
             return "\u{e648}"; // wifi_off
         }
-        if let Some(signal) = NetworkService::get_active_signal() {
-            if signal >= 75 {
-                "\u{e1d8}" // network_wifi (full / e1d8)
-            } else if signal >= 50 {
-                "\u{ebe7}" // network_wifi_3_bar
-            } else if signal >= 25 {
-                "\u{ebe6}" // network_wifi_2_bar
-            } else {
-                "\u{ebe4}" // network_wifi_1_bar (ebe4)
-            }
-        } else if NetworkService::get_active_ssid().is_some() {
-            "\u{e1d8}" // network_wifi
+        if NetworkService::get_active_ssid().is_some() || NetworkService::get_active_signal().is_some() {
+            "\u{e63e}" // wifi (solid connected icon e63e)
         } else {
             "\u{e648}" // disconnected
         }
@@ -167,27 +157,17 @@ impl RightSection {
     pub fn get_battery_icon_code() -> &'static str {
         let info = BatteryService::get_info();
         if !info.is_present {
-            return "\u{e2ae}"; // charger icon for desktop AC power
+            return "\u{e1a4}"; // full battery icon for desktop PC
         }
 
         if info.status.eq_ignore_ascii_case("Charging") {
-            "\u{e2ae}" // charger icon
-        } else if info.capacity < 10 {
-            "\u{e19c}" // battery_alert (less than 10%)
-        } else if info.capacity < 25 {
-            "\u{ebd9}" // battery_1_bar
-        } else if info.capacity < 40 {
-            "\u{ebdc}" // battery_2_bar
-        } else if info.capacity < 55 {
-            "\u{ebdf}" // battery_3_bar
-        } else if info.capacity < 70 {
-            "\u{ebe2}" // battery_4_bar
-        } else if info.capacity < 85 {
-            "\u{ebe4}" // battery_5_bar
-        } else if info.capacity < 95 {
-            "\u{ebe5}" // battery_6_bar
+            "\u{e1a3}" // battery_charging_full (e1a3)
+        } else if info.capacity < 15 {
+            "\u{e19c}" // battery_alert (less than 15%)
+        } else if info.capacity < 35 {
+            "\u{e1a0}" // battery_low / 2_bar (e1a0)
         } else {
-            "\u{e1a4}" // battery_full
+            "\u{e1a4}" // battery_full (e1a4)
         }
     }
 }
