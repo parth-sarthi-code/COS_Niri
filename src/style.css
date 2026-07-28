@@ -729,3 +729,127 @@ passwordentry.qs-pass-input:focus, entry.qs-pass-input:focus {
     background-color: rgba(255, 255, 255, 0.18);
 }
 
+/* === APP DRAWER / LAUNCHER POPUP PANEL (ChromeOS Glassmorphism) === */
+window.launcher-popup-window {
+    background-color: transparent;
+    border-radius: 24px;
+}
+
+box.launcher-popup-container {
+    background-color: rgba(18, 19, 26, 0.72);
+    border-radius: 24px;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: none;
+    font-family: "Roboto", sans-serif;
+    color: #e3e2e6;
+}
+
+box.launcher-header {
+    margin-bottom: 8px;
+}
+
+label.launcher-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-right: 16px;
+}
+
+searchentry.launcher-search, entry.launcher-search {
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    color: #ffffff;
+    padding: 6px 14px;
+    font-size: 14px;
+    transition: all 150ms ease;
+}
+
+searchentry.launcher-search text, entry.launcher-search text {
+    color: #ffffff;
+}
+
+searchentry.launcher-search:focus, entry.launcher-search:focus {
+    border-color: #a8c7fa;
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+scrolledwindow.launcher-categories-scroll {
+    min-height: 48px;
+    margin-bottom: 8px;
+}
+
+box.launcher-categories-box {
+    padding: 2px 0;
+}
+
+button.launcher-cat-btn {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #e3e2e6;
+    border: none;
+    box-shadow: none;
+    transition: all 150ms ease;
+}
+
+button.launcher-cat-btn:hover {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+button.launcher-cat-btn.active {
+    background-image: none;
+    background-color: #a8c7fa;
+    color: #003062;
+    font-weight: 600;
+}
+
+scrolledwindow.launcher-grid-scroll {
+    background: transparent;
+    border: none;
+}
+
+flowbox.launcher-flowbox {
+    background: transparent;
+}
+
+button.launcher-app-item {
+    background-image: none;
+    background: none;
+    border: none;
+    box-shadow: none;
+    border-radius: 16px;
+    padding: 12px 6px;
+    color: #e3e2e6;
+    transition: all 180ms ease;
+}
+
+button.launcher-app-item:hover {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+button.launcher-app-item box.icon-bubble {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    transition: transform 150ms ease;
+}
+
+button.launcher-app-item:hover box.icon-bubble {
+    transform: scale(1.08);
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+label.launcher-app-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: #e3e2e6;
+    margin-top: 4px;
+}
+
+

@@ -1,6 +1,7 @@
 use crate::components::calendar::popup::CalendarPopup;
 use crate::components::center::CenterSection;
 use crate::components::left::LeftSection;
+use crate::components::launcher::LauncherPopup;
 use crate::components::quick_settings::grid::GridSection;
 use crate::components::quick_settings::popup::QuickSettingsPopup;
 use crate::components::right::RightSection;
@@ -21,6 +22,7 @@ pub struct BarWindow {
     pub right_section: Rc<RightSection>,
     pub quick_settings: Rc<QuickSettingsPopup>,
     pub calendar: Rc<CalendarPopup>,
+    pub launcher: Rc<LauncherPopup>,
 }
 
 impl BarWindow {
@@ -42,13 +44,19 @@ impl BarWindow {
 
         window.add_css_class("cos-bar-window");
 
+        // Instantiate App Launcher popup
+        let launcher = Rc::new(LauncherPopup::new(app));
+
         // Instantiate Quick Settings floating popup
         let quick_settings = Rc::new(QuickSettingsPopup::new(app));
 
         // Instantiate Calendar floating popup
         let calendar = Rc::new(CalendarPopup::new(app));
 
-        let left_section = LeftSection::new();
+        let launcher_toggle_ref = Rc::clone(&launcher);
+        let left_section = LeftSection::new(move || {
+            launcher_toggle_ref.toggle();
+        });
         let center_section = CenterSection::new();
 
         let qs_toggle_ref = Rc::clone(&quick_settings);
@@ -141,6 +149,7 @@ impl BarWindow {
             right_section,
             quick_settings,
             calendar,
+            launcher,
         }
     }
 

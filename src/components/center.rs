@@ -22,6 +22,7 @@ pub struct DesktopEntry {
     pub icon: String,
     pub exec: String,
     pub desktop_id: String,
+    pub categories: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -297,6 +298,7 @@ impl CenterSection {
         let mut name = None;
         let mut icon = None;
         let mut exec = None;
+        let mut categories = Vec::new();
         let mut in_desktop_entry = false;
 
         for line in content.lines() {
@@ -321,6 +323,13 @@ impl CenterSection {
                         .collect::<Vec<_>>()
                         .join(" ");
                     exec = Some(clean_exec);
+                } else if line.starts_with("Categories=") {
+                    let cats_str = &line["Categories=".len()..];
+                    categories = cats_str
+                        .split(';')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
                 }
             }
         }
@@ -331,6 +340,7 @@ impl CenterSection {
                 icon,
                 exec,
                 desktop_id,
+                categories,
             })
         } else {
             None

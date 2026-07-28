@@ -23,7 +23,10 @@ pub struct LeftSection {
 }
 
 impl LeftSection {
-    pub fn new() -> Self {
+    pub fn new<F>(on_toggle_launcher: F) -> Self
+    where
+        F: Fn() + 'static,
+    {
         let container = GtkBox::new(Orientation::Horizontal, 6);
         container.add_css_class("left-section");
         container.set_valign(gtk4::Align::Center);
@@ -49,6 +52,10 @@ impl LeftSection {
         launcher_wrap.append(&launcher_icon);
         launcher_btn.set_child(Some(&launcher_wrap));
         container.append(&launcher_btn);
+
+        launcher_btn.connect_clicked(move |_| {
+            on_toggle_launcher();
+        });
 
         // Vertical separator
         let sep = Separator::new(Orientation::Vertical);
