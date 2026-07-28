@@ -215,13 +215,20 @@ box.right-section {
     min-height: 48px;
 }
 
-/* Date Pill Button */
+/* ChromeOS Connected Split-Pill Tray */
+box.shelf-pill-group {
+    margin: 0;
+    padding: 0;
+}
+
+/* Left Segment: Date Pill */
 button.date-pill {
     background-color: rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
+    border-radius: 18px 4px 4px 18px;
     padding: 0 14px;
     min-height: 36px;
     border: 1px solid rgba(255, 255, 255, 0.07);
+    margin-right: 1px;
     transition: background-color 180ms ease;
 }
 
@@ -241,13 +248,14 @@ label.date-label {
     margin: 0;
 }
 
-/* Quick Settings Status Pill */
+/* Right Segment: Quick Settings Status Pill */
 button.qs-pill {
     background-color: rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
+    border-radius: 4px 18px 18px 4px;
     padding: 0 14px;
     min-height: 36px;
     border: 1px solid rgba(255, 255, 255, 0.07);
+    margin-left: 1px;
     transition: background-color 180ms ease;
 }
 

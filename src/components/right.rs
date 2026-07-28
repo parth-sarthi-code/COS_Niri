@@ -1,6 +1,6 @@
 use chrono::{Local, Timelike};
 use gtk4::prelude::*;
-use gtk4::{Box as GtkBox, Button, Label, Orientation, Separator};
+use gtk4::{Box as GtkBox, Button, Label, Orientation};
 use std::time::Duration;
 
 #[allow(dead_code)]
@@ -42,13 +42,12 @@ impl RightSection {
         stylus_btn.set_child(Some(&stylus_wrap));
         container.append(&stylus_btn);
 
-        // Separator between Stylus and Date Pill
-        let sep1 = Separator::new(Orientation::Vertical);
-        sep1.add_css_class("shelf-sep");
-        sep1.set_valign(gtk4::Align::Center);
-        container.append(&sep1);
+        // 2. ChromeOS Connected Split-Pill Container (2px gap)
+        let pill_group = GtkBox::new(Orientation::Horizontal, 2);
+        pill_group.add_css_class("shelf-pill-group");
+        pill_group.set_valign(gtk4::Align::Center);
 
-        // 2. Date Pill Button (Clickable -> Notifications & Calendar)
+        // --- Left Segment: Date Pill ---
         let date_btn = Button::new();
         date_btn.add_css_class("date-pill");
         date_btn.set_tooltip_text(Some("Calendar & Notifications"));
@@ -62,15 +61,9 @@ impl RightSection {
         date_btn.connect_clicked(|_| {
             let _ = std::process::Command::new("swaync-client").args(["-t", "-sw"]).spawn();
         });
-        container.append(&date_btn);
+        pill_group.append(&date_btn);
 
-        // 3. Vertical Separator between Date Pill and Quick Settings Pill
-        let sep2 = Separator::new(Orientation::Vertical);
-        sep2.add_css_class("shelf-sep");
-        sep2.set_valign(gtk4::Align::Center);
-        container.append(&sep2);
-
-        // 4. Quick Settings Status Pill Button (Time | Dropdown Arrow | Wifi | Battery)
+        // --- Right Segment: Quick Settings Pill ---
         let pill_btn = Button::new();
         pill_btn.add_css_class("qs-pill");
         pill_btn.set_tooltip_text(Some("Quick Settings"));
@@ -113,12 +106,12 @@ impl RightSection {
 
         pill_btn.set_child(Some(&pill));
 
-        // Connect click handler to toggle Quick Settings popup
         pill_btn.connect_clicked(move |_| {
             on_toggle_qs();
         });
 
-        container.append(&pill_btn);
+        pill_group.append(&pill_btn);
+        container.append(&pill_group);
 
         // Minute-aligned clock timer
         let clock_clone = clock_label.clone();
