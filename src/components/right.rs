@@ -14,9 +14,10 @@ pub struct RightSection {
 }
 
 impl RightSection {
-    pub fn new<F>(on_toggle_qs: F) -> Self
+    pub fn new<FQS, FCal>(on_toggle_qs: FQS, on_toggle_cal: FCal) -> Self
     where
-        F: Fn() + 'static,
+        FQS: Fn() + 'static,
+        FCal: Fn() + 'static,
     {
         let container = GtkBox::new(Orientation::Horizontal, 6);
         container.add_css_class("right-section");
@@ -61,8 +62,8 @@ impl RightSection {
         date_label.set_valign(gtk4::Align::Center);
         date_btn.set_child(Some(&date_label));
 
-        date_btn.connect_clicked(|_| {
-            // Calendar integration slot
+        date_btn.connect_clicked(move |_| {
+            on_toggle_cal();
         });
         pill_group.append(&date_btn);
 

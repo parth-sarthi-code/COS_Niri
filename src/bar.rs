@@ -1,3 +1,4 @@
+use crate::components::calendar::popup::CalendarPopup;
 use crate::components::center::CenterSection;
 use crate::components::left::LeftSection;
 use crate::components::quick_settings::grid::GridSection;
@@ -18,6 +19,7 @@ pub struct BarWindow {
     pub center_section: CenterSection,
     pub right_section: RightSection,
     pub quick_settings: Rc<QuickSettingsPopup>,
+    pub calendar: Rc<CalendarPopup>,
 }
 
 impl BarWindow {
@@ -41,6 +43,9 @@ impl BarWindow {
 
         // Instantiate Quick Settings floating popup
         let quick_settings = Rc::new(QuickSettingsPopup::new(app));
+
+        // Instantiate Calendar floating popup
+        let calendar = Rc::new(CalendarPopup::new(app));
 
         // NetworkManager live event listener via channel
         let (net_tx, net_rx) = mpsc::channel::<()>();
@@ -78,9 +83,16 @@ impl BarWindow {
         let center_section = CenterSection::new();
 
         let qs_toggle_ref = Rc::clone(&quick_settings);
-        let right_section = RightSection::new(move || {
-            qs_toggle_ref.toggle();
-        });
+        let cal_toggle_ref = Rc::clone(&calendar);
+
+        let right_section = RightSection::new(
+            move || {
+                qs_toggle_ref.toggle();
+            },
+            move || {
+                cal_toggle_ref.toggle();
+            },
+        );
 
         // Left — fixed to start
         left_section.container.set_halign(gtk4::Align::Start);
@@ -117,6 +129,7 @@ impl BarWindow {
             center_section,
             right_section,
             quick_settings,
+            calendar,
         }
     }
 

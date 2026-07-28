@@ -549,3 +549,94 @@ label.qs-subpage-empty {
     padding: 20px;
 }
 
+/* === CALENDAR POPUP PANEL (ChromeOS Glassmorphism) === */
+window.cal-popup-window {
+    background-color: transparent;
+}
+
+box.cal-popup-container {
+    background-color: rgba(18, 19, 26, 0.62);
+    border-radius: 24px;
+    padding: 20px 24px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
+    font-family: "Roboto", sans-serif;
+    color: #e3e2e6;
+}
+
+/* Header */
+label.cal-month-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+button.cal-today-btn {
+    background-color: rgba(255, 255, 255, 0.10);
+    border-radius: 12px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #e3e2e6;
+    border: none;
+}
+
+button.cal-today-btn:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+button.cal-nav-btn {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    color: #e3e2e6;
+    border: none;
+}
+
+button.cal-nav-btn:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+/* Days of Week Header Grid */
+grid.cal-dow-grid {
+    margin-bottom: 6px;
+}
+
+label.cal-dow-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #8e919e;
+}
+
+/* Day Cells */
+button.cal-day-cell {
+    background: none;
+    border: none;
+    border-radius: 50%;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #e3e2e6;
+    transition: background-color 150ms ease;
+}
+
+button.cal-day-cell.cal-active-month:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Today Active Bubble */
+button.cal-day-cell.cal-today {
+    background-color: #a8c7fa;
+    color: #003062;
+    font-weight: 700;
+    border-radius: 50%;
+}
+
+button.cal-day-cell.cal-other-month {
+    opacity: 0.25;
+}
+
