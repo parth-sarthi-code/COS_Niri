@@ -229,7 +229,7 @@ button.date-pill {
     border-radius: 18px 4px 4px 18px;
     padding: 0 14px;
     min-height: 36px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: none;
     margin-right: 1px;
     box-shadow: none;
     transition: background-color 180ms ease;
@@ -261,7 +261,7 @@ button.qs-pill {
     border-radius: 4px 18px 18px 4px;
     padding: 0 14px;
     min-height: 36px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: none;
     margin-left: 1px;
     box-shadow: none;
     transition: background-color 180ms ease;
