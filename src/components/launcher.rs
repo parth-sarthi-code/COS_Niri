@@ -31,7 +31,7 @@ impl LauncherPopup {
 
         let container = GtkBox::new(Orientation::Vertical, 24);
         container.add_css_class("launcher-popup-container");
-        container.set_size_request(1100, 680);
+        container.set_size_request(1320, 810);
         container.set_hexpand(true);
         container.set_vexpand(true);
         container.set_halign(gtk4::Align::Fill);
@@ -56,7 +56,7 @@ impl LauncherPopup {
         grid_scroll.add_css_class("launcher-grid-scroll");
 
         let flowbox = FlowBox::new();
-        flowbox.set_max_children_per_line(8);
+        flowbox.set_max_children_per_line(6);
         flowbox.set_min_children_per_line(6);
         flowbox.set_homogeneous(true);
         flowbox.set_row_spacing(32);
