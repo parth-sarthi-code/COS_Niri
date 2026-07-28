@@ -10,6 +10,15 @@ This shell currently officially supports **Fedora** (tested on Fedora 44 Worksta
 
 ---
 
+## Resource Consumption (Fedora 44)
+Measured metrics of the compiled release bar at idle:
+*   **CPU (Idle)**: **0.0%**
+*   **Resident RAM (RSS)**: **~144 MB** (148,060 KB)
+*   **Virtual Memory (VIRT)**: **~3.48 GB** (3,645,976 KB)
+*   **Shared Memory (SHR)**: **~74 MB** (76,480 KB)
+
+---
+
 ## Installation & Build Instructions
 
 ### 1. Prerequisites
@@ -94,3 +103,12 @@ layer-rule {
     }
 }
 ```
+
+---
+
+## Screenshots
+Here are screenshots of the components running under Fedora 44 + Niri:
+
+| macOS Launchpad App Drawer | Quick Settings CC & Calendar |
+| :---: | :---: |
+| ![App Drawer](media/launcher.png) | ![Quick Settings & Calendar](media/quick_settings.png) |
