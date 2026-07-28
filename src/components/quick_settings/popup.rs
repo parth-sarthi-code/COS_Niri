@@ -22,6 +22,7 @@ pub struct QuickSettingsPopup {
     pub stack: Stack,
     pub grid: Rc<GridSection>,
     pub sliders: Rc<SlidersSection>,
+    pub audio_page: Rc<AudioPage>,
     pub batt_label: Label,
     pub wifi_page: Rc<WifiPage>,
 }
@@ -109,7 +110,9 @@ impl QuickSettingsPopup {
 
         // 3. Sliders (Volume & Brightness)
         let st_audio = Rc::clone(&stack_rc);
+        let ap_open = Rc::clone(&audio_page);
         let sliders = Rc::new(SlidersSection::new(move || {
+            ap_open.sync_state();
             st_audio.borrow().set_visible_child_name("audio");
         }));
         main_view.append(&sliders.container);
@@ -167,18 +170,20 @@ impl QuickSettingsPopup {
             glib::ControlFlow::Continue
         });
 
-        // 2. PipeWire audio stream listener for hardware volume / mute / sink events
+        // 2. PipeWire audio stream listener for hardware volume / mute / sink hotplug events
         let (audio_tx, audio_rx) = std::sync::mpsc::channel::<()>();
         AudioService::listen_events(move || {
             let _ = audio_tx.send(());
         });
 
         let s_audio = Rc::clone(&sliders);
+        let ap_sync = Rc::clone(&audio_page);
         glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
             while audio_rx.try_recv().is_ok() {
                 let vol = AudioService::get_volume();
                 let is_muted = AudioService::is_muted();
                 s_audio.set_volume_val(vol, is_muted);
+                ap_sync.sync_state();
             }
             glib::ControlFlow::Continue
         });
@@ -188,6 +193,7 @@ impl QuickSettingsPopup {
             stack,
             grid,
             sliders,
+            audio_page,
             batt_label: batt_lbl,
             wifi_page,
         }
@@ -213,6 +219,7 @@ impl QuickSettingsPopup {
             let grid_ref = Rc::clone(&self.grid);
             let batt_ref = self.batt_label.clone();
             let wifi_page_ref = Rc::clone(&self.wifi_page);
+            let audio_page_ref = Rc::clone(&self.audio_page);
 
             glib::timeout_add_local_once(std::time::Duration::from_millis(280), move || {
                 let batt_info = BatteryService::get_info();
@@ -224,6 +231,7 @@ impl QuickSettingsPopup {
                 batt_ref.set_text(&batt_str);
                 GridSection::async_refresh(grid_ref);
                 wifi_page_ref.sync_state();
+                audio_page_ref.sync_state();
             });
         }
     }
