@@ -287,7 +287,9 @@ label.clock-label {
 }
 
 label.qs-icon {
-    color: #e3e2e6;
+    font-size: 19px;
+    color: #ffffff;
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
 
 /* === QUICK SETTINGS POPUP PANEL (ChromeOS Glassmorphism) === */
