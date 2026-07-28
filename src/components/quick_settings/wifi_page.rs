@@ -110,7 +110,7 @@ impl WifiPage {
             let _ = sender.send(networks);
         });
 
-        glib::idle_add_local(move || {
+        glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
             if let Ok(networks) = receiver.try_recv() {
                 // Clear loading label
                 while let Some(child) = list_box_c.first_child() {

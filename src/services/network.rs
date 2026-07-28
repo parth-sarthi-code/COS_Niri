@@ -317,32 +317,58 @@ impl NetworkService {
                 let active_ssid = state.ssid.unwrap_or_default();
 
                 for ap_path in ap_paths {
-                    // Read SSID byte array (`ay`)
-                    let ssid_var = conn
+                    // Fetch all AccessPoint properties in a single D-Bus round-trip
+                    let all_props = conn
                         .call_sync(
                             Some("org.freedesktop.NetworkManager"),
                             &ap_path,
                             "org.freedesktop.DBus.Properties",
-                            "Get",
-                            Some(&(
-                                "org.freedesktop.NetworkManager.AccessPoint",
-                                "Ssid",
-                            ).to_variant()),
+                            "GetAll",
+                            Some(&("org.freedesktop.NetworkManager.AccessPoint",).to_variant()),
                             None,
                             gio::DBusCallFlags::NONE,
                             -1,
                             gio::Cancellable::NONE,
                         )
                         .ok()
-                        .and_then(|res| res.child_value(0).get::<glib::Variant>());
+                        .map(|res| res.child_value(0));
 
+                    let props_var = match all_props {
+                        Some(v) => v,
+                        None => continue,
+                    };
+
+                    // Parse SSID from `ay` byte array and Strength from `y`
+                    // props_var is a{sv}: dict of (string, variant)
                     let mut ssid_bytes = Vec::new();
-                    if let Some(sv) = ssid_var {
-                        let inner_v = sv.child_value(0);
-                        for k in 0..inner_v.n_children() {
-                            if let Some(b) = inner_v.child_value(k).get::<u8>() {
-                                ssid_bytes.push(b);
+                    let mut strength: u32 = 0;
+
+                    for i in 0..props_var.n_children() {
+                        let entry = props_var.child_value(i);
+                        let key = match entry.child_value(0).str() {
+                            Some(k) => k.to_string(),
+                            None => continue,
+                        };
+                        // child_value(1) is the `v` (boxed Variant) — unwrap one level
+                        let boxed = entry.child_value(1);
+                        let inner = if boxed.type_().as_str() == "v" {
+                            boxed.child_value(0)
+                        } else {
+                            boxed
+                        };
+
+                        match key.as_str() {
+                            "Ssid" => {
+                                for k in 0..inner.n_children() {
+                                    if let Some(b) = inner.child_value(k).get::<u8>() {
+                                        ssid_bytes.push(b);
+                                    }
+                                }
                             }
+                            "Strength" => {
+                                strength = inner.get::<u8>().unwrap_or(0) as u32;
+                            }
+                            _ => {}
                         }
                     }
 
@@ -350,27 +376,6 @@ impl NetworkService {
                     if ssid_str.is_empty() {
                         continue;
                     }
-
-                    // Read Strength u8
-                    let strength = conn
-                        .call_sync(
-                            Some("org.freedesktop.NetworkManager"),
-                            &ap_path,
-                            "org.freedesktop.DBus.Properties",
-                            "Get",
-                            Some(&(
-                                "org.freedesktop.NetworkManager.AccessPoint",
-                                "Strength",
-                            ).to_variant()),
-                            None,
-                            gio::DBusCallFlags::NONE,
-                            -1,
-                            gio::Cancellable::NONE,
-                        )
-                        .ok()
-                        .and_then(|res| res.child_value(0).get::<glib::Variant>())
-                        .and_then(|v| v.get::<u8>())
-                        .unwrap_or(0) as u32;
 
                     let is_connected = !active_ssid.is_empty() && ssid_str == active_ssid;
 
