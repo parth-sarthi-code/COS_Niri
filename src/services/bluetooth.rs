@@ -36,23 +36,40 @@ impl BluetoothService {
         });
     }
 
-    /// Get list of paired / available Bluetooth devices efficiently
+    /// Get list of paired / available Bluetooth devices efficiently (2 forks instead of N+1)
     pub fn get_devices() -> Vec<BluetoothDevice> {
         let mut devices = Vec::new();
 
-        if let Ok(output) = Command::new("bluetoothctl")
+        // 1. Get all paired/known devices (1 fork)
+        let all_output = Command::new("bluetoothctl")
             .env("LC_ALL", "C")
             .arg("devices")
+            .output();
+
+        // 2. Get only connected devices (1 fork) — O(1) vs O(n) per-device info calls
+        let mut connected_macs = std::collections::HashSet::new();
+        if let Ok(output) = Command::new("bluetoothctl")
+            .env("LC_ALL", "C")
+            .args(["devices", "Connected"])
             .output()
         {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
-                // Line format: "Device 00:11:22:33:44:55 Device Name"
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 && parts[0] == "Device" {
+                    connected_macs.insert(parts[1].to_string());
+                }
+            }
+        }
+
+        if let Ok(output) = all_output {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
                 let parts: Vec<&str> = line.split_whitespace().collect();
                 if parts.len() >= 3 && parts[0] == "Device" {
                     let mac = parts[1].to_string();
                     let name = parts[2..].join(" ");
-                    let is_connected = Self::check_is_connected(&mac);
+                    let is_connected = connected_macs.contains(&mac);
 
                     devices.push(BluetoothDevice {
                         mac,

@@ -71,7 +71,7 @@ impl AudioPage {
             let _ = sender.send(sinks);
         });
 
-        glib::idle_add_local(move || {
+        glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
             if let Ok(sinks) = receiver.try_recv() {
                 // Clear existing GTK elements
                 while let Some(child) = list_box_clone.first_child() {

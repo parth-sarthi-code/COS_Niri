@@ -191,8 +191,7 @@ impl QuickSettingsPopup {
                 fired = true;
             }
             if fired {
-                let vol = AudioService::get_volume();
-                let is_muted = AudioService::is_muted();
+                let (vol, is_muted) = AudioService::get_volume_and_mute();
                 s_audio.set_volume_val(vol, is_muted);
 
                 // Only re-fetch pactl list sinks if Audio sub-page is currently visible

@@ -217,7 +217,7 @@ impl GridSection {
             let _ = sender.send((net_state, bt_on, night_on, power_prof));
         });
 
-        glib::idle_add_local(move || {
+        glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
             if let Ok((net_state, bt_on, night_on, power_prof)) = receiver.try_recv() {
                 // Wi-Fi Tile synchronized with D-Bus
                 if net_state.is_enabled {

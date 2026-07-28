@@ -135,17 +135,17 @@ impl RightSection {
         date_label.set_text(&now.format("%b %-d").to_string());
         batt_icon.set_text(Self::get_battery_icon_code());
 
-        // 1. Clock & Date: Align update to top of the next minute, then repeat every 60s
+        // 1. Clock & Date: Align to next minute boundary, then 60s recurring
         let clock_c = clock_label.clone();
         let date_c = date_label.clone();
         let secs_to_next_min = (60 - chrono::Timelike::second(&now)).max(1);
 
-        glib::timeout_add_seconds_local(secs_to_next_min, move || {
+        glib::timeout_add_local_once(std::time::Duration::from_secs(secs_to_next_min as u64), move || {
             let n = Local::now();
             clock_c.set_text(&n.format("%H:%M").to_string());
             date_c.set_text(&n.format("%b %-d").to_string());
 
-            // After first minute boundary align, continue every 60 seconds
+            // Single recurring 60-second timer (no stacking)
             let c_c = clock_c.clone();
             let d_c = date_c.clone();
             glib::timeout_add_seconds_local(60, move || {
@@ -154,8 +154,6 @@ impl RightSection {
                 d_c.set_text(&inner_n.format("%b %-d").to_string());
                 glib::ControlFlow::Continue
             });
-
-            glib::ControlFlow::Break
         });
 
         // 2. Battery: Lightweight 30-second sysfs check (0 process forks)

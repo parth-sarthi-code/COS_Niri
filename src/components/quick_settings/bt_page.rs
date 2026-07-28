@@ -69,7 +69,7 @@ impl BtPage {
                 let _ = sender.send(devices);
             });
 
-            glib::idle_add_local(move || {
+            glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
                 if let Ok(devices) = receiver.try_recv() {
                     // Collect existing GTK Button items for recycling
                     let mut existing_btns: Vec<Button> = Vec::new();
