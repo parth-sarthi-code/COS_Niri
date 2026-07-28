@@ -29,51 +29,51 @@ pub struct PinnedAppConfig {
     pub display_title: String,
     pub fixed_icon: String,
     pub desktop_file: String,
-    pub fallback_exec: String,
+    pub fallback_candidates: Vec<String>,
     pub match_ids: Vec<String>,
 }
 
-const DEFAULT_PINNED_APPS: &[(&str, &str, &str, &str, &[&str])] = &[
+const DEFAULT_PINNED_APPS: &[(&str, &str, &str, &[&str], &[&str])] = &[
     (
         "Google Chrome",
         "com.google.Chrome",
         "com.google.Chrome.desktop",
-        "flatpak run com.google.Chrome || google-chrome-stable || google-chrome",
+        &["google-chrome-stable", "google-chrome", "flatpak run com.google.Chrome"],
         &["com.google.chrome", "google-chrome", "chrome"],
     ),
     (
         "Firefox",
         "org.mozilla.firefox",
         "org.mozilla.firefox.desktop",
-        "firefox",
+        &["firefox", "flatpak run org.mozilla.firefox"],
         &["org.mozilla.firefox", "firefox", "mozilla-firefox"],
     ),
     (
         "Files",
         "org.gnome.Nautilus",
         "org.gnome.Nautilus.desktop",
-        "nautilus",
+        &["nautilus", "org.gnome.Nautilus"],
         &["org.gnome.nautilus", "nautilus"],
     ),
     (
         "VS Code",
         "vscode",
         "code.desktop",
-        "code",
+        &["code", "codium", "flatpak run com.visualstudio.code"],
         &["code", "vscode", "com.visualstudio.code"],
     ),
     (
         "Telegram",
         "org.telegram.desktop",
         "org.telegram.desktop.desktop",
-        "flatpak run org.telegram.desktop || telegram-desktop",
+        &["telegram-desktop", "telegram", "flatpak run org.telegram.desktop"],
         &["org.telegram.desktop", "telegramdesktop", "telegram"],
     ),
     (
         "Terminal",
         "Alacritty",
         "Alacritty.desktop",
-        "alacritty || ptyxis",
+        &["alacritty", "foot", "kitty", "ptyxis"],
         &["alacritty", "foot", "kitty", "org.gnome.terminal", "org.gnome.ptyxis", "ptyxis", "console"],
     ),
 ];
@@ -83,6 +83,7 @@ struct PinnedAppWidget {
     button: Button,
     dot: GtkBox,
     focus_id_cell: Rc<RefCell<Option<u64>>>,
+    resolved_exec: String,
 }
 
 struct UnpinnedAppWidget {
@@ -119,6 +120,7 @@ impl CenterSection {
         let mut pinned_widgets = Vec::new();
 
         for config in pinned_configs {
+            // 1. Try to resolve Exec= from scanned desktop entry
             let found_entry = desktop_entries.values().find(|entry| {
                 let id_lower = entry.desktop_id.to_lowercase();
                 let name_lower = entry.name.to_lowercase();
@@ -128,20 +130,33 @@ impl CenterSection {
                 })
             });
 
-            let exec_cmd = found_entry
+            // 2. If desktop entry not found, probe candidate binaries on system PATH
+            let resolved_exec = found_entry
                 .map(|e| e.exec.clone())
-                .unwrap_or_else(|| config.fallback_exec.clone());
+                .unwrap_or_else(|| Self::probe_first_valid_binary(&config.fallback_candidates));
 
             let (button, dot) = Self::create_dock_button_nodes(&config.fixed_icon, &config.display_title);
             let focus_id_cell = Rc::new(RefCell::new(None));
 
             let focus_cell_clone = Rc::clone(&focus_id_cell);
-            let exec_cmd_clone = exec_cmd.clone();
+            let exec_cmd_clone = resolved_exec.clone();
+
             button.connect_clicked(move |_| {
                 let target_id = *focus_cell_clone.borrow();
+                let mut focus_success = false;
+
                 if let Some(id) = target_id {
-                    NiriIpcClient::focus_window(id);
-                } else {
+                    // Check if window ID is still alive in current window list
+                    if let Ok(windows) = NiriIpcClient::get_windows() {
+                        if windows.iter().any(|w| w.id == id) {
+                            NiriIpcClient::focus_window(id);
+                            focus_success = true;
+                        }
+                    }
+                }
+
+                // If window no longer exists or focus failed, launch new instance
+                if !focus_success {
                     Self::launch_app(&exec_cmd_clone);
                 }
             });
@@ -153,6 +168,7 @@ impl CenterSection {
                 button,
                 dot,
                 focus_id_cell,
+                resolved_exec,
             });
         }
 
@@ -191,15 +207,49 @@ impl CenterSection {
         }
     }
 
-    /// Load pinned configs with backup/persist support
+    /// Probe candidate binary commands against PATH and return the first valid executable
+    fn probe_first_valid_binary(candidates: &[String]) -> String {
+        let path_var = std::env::var("PATH").unwrap_or_default();
+        let path_dirs: Vec<PathBuf> = std::env::split_paths(&path_var).collect();
+
+        for candidate in candidates {
+            let parts: Vec<&str> = candidate.split_whitespace().collect();
+            if parts.is_empty() {
+                continue;
+            }
+
+            let bin_name = parts[0];
+
+            // Direct executable path check
+            if bin_name.starts_with('/') {
+                if Path::new(bin_name).exists() {
+                    return candidate.clone();
+                }
+                continue;
+            }
+
+            // Probe in PATH directories
+            for dir in &path_dirs {
+                let full_path = dir.join(bin_name);
+                if full_path.is_file() {
+                    return candidate.clone();
+                }
+            }
+        }
+
+        // Fallback to first candidate if none probed
+        candidates.first().cloned().unwrap_or_default()
+    }
+
+    /// Load pinned configs
     fn load_pinned_configs() -> Vec<PinnedAppConfig> {
         let mut configs = Vec::new();
-        for &(title, icon, desk, fallback, matches) in DEFAULT_PINNED_APPS {
+        for &(title, icon, desk, fallbacks, matches) in DEFAULT_PINNED_APPS {
             configs.push(PinnedAppConfig {
                 display_title: title.to_string(),
                 fixed_icon: icon.to_string(),
                 desktop_file: desk.to_string(),
-                fallback_exec: fallback.to_string(),
+                fallback_candidates: fallbacks.iter().map(|s| s.to_string()).collect(),
                 match_ids: matches.iter().map(|s| s.to_string()).collect(),
             });
         }
@@ -239,7 +289,7 @@ impl CenterSection {
         })
     }
 
-    /// Parse single .desktop file
+    /// Parse single .desktop file with specifier stripping
     fn parse_desktop_file(path: &Path) -> Option<DesktopEntry> {
         let content = fs::read_to_string(path).ok()?;
         let desktop_id = path.file_name()?.to_str()?.to_string();
@@ -445,8 +495,13 @@ impl CenterSection {
                         let focus_id_cell = Rc::new(RefCell::new(focus_id));
                         let focus_cell_clone = Rc::clone(&focus_id_cell);
                         btn.connect_clicked(move |_| {
-                            if let Some(id) = *focus_cell_clone.borrow() {
-                                NiriIpcClient::focus_window(id);
+                            let target_id = *focus_cell_clone.borrow();
+                            if let Some(id) = target_id {
+                                if let Ok(windows) = NiriIpcClient::get_windows() {
+                                    if windows.iter().any(|w| w.id == id) {
+                                        NiriIpcClient::focus_window(id);
+                                    }
+                                }
                             }
                         });
 
