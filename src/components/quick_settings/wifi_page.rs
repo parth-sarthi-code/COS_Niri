@@ -1,6 +1,6 @@
 use crate::services::network::{NetworkService, WifiNetwork};
 use gtk4::prelude::*;
-use gtk4::{Box as GtkBox, Button, GestureClick, Label, Orientation, PasswordEntry, ScrolledWindow, Switch};
+use gtk4::{Box as GtkBox, Button, Label, Orientation, PasswordEntry, ScrolledWindow, Switch};
 use std::sync::mpsc;
 use std::thread;
 
@@ -155,10 +155,17 @@ impl WifiPage {
                             row.append(&disc_btn);
                         }
 
-                        item_container.append(&row);
-
-                        // If not connected, add expandable password prompt
                         if !net.is_connected {
+                            let lock_lbl = Label::new(Some("\u{e5cf}")); // keyboard_arrow_down
+                            lock_lbl.add_css_class("ms-icon");
+                            lock_lbl.add_css_class("ms-icon-sm");
+                            row.append(&lock_lbl);
+
+                            let row_btn = Button::new();
+                            row_btn.add_css_class("qs-list-item-btn");
+                            row_btn.set_child(Some(&row));
+                            item_container.append(&row_btn);
+
                             let pass_box = GtkBox::new(Orientation::Horizontal, 6);
                             pass_box.add_css_class("qs-pass-box");
                             pass_box.set_visible(false);
@@ -194,14 +201,19 @@ impl WifiPage {
                             pass_box.append(&connect_btn);
                             item_container.append(&pass_box);
 
-                            // Toggle password box when clicking the row
-                            let gesture = GestureClick::new();
+                            // Toggle password box on row button click
                             let p_box_toggle = pass_box.clone();
-                            gesture.connect_pressed(move |_, _, _, _| {
+                            let entry_focus = pass_entry.clone();
+                            row_btn.connect_clicked(move |_| {
                                 let is_vis = p_box_toggle.is_visible();
-                                p_box_toggle.set_visible(!is_vis);
+                                let new_vis = !is_vis;
+                                p_box_toggle.set_visible(new_vis);
+                                if new_vis {
+                                    entry_focus.grab_focus();
+                                }
                             });
-                            row.add_controller(gesture);
+                        } else {
+                            item_container.append(&row);
                         }
 
                         list_box_c.append(&item_container);

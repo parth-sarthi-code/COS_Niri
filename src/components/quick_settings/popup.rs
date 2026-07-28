@@ -27,6 +27,7 @@ impl QuickSettingsPopup {
         window.init_layer_shell();
         window.set_layer(Layer::Overlay);
         window.set_namespace("cos-quick-settings");
+        window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
 
         // Anchor to Bottom-Right floating above the bar shelf
         window.set_anchor(Edge::Bottom, true);
