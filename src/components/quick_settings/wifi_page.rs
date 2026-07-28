@@ -217,11 +217,15 @@ impl WifiPage {
                             // Toggle password box on row button click
                             let p_box_toggle = pass_box.clone();
                             let entry_focus = pass_entry.clone();
-                            row_btn.connect_clicked(move |_| {
+                            row_btn.connect_clicked(move |btn| {
                                 let is_vis = p_box_toggle.is_visible();
                                 let new_vis = !is_vis;
                                 p_box_toggle.set_visible(new_vis);
                                 if new_vis {
+                                    if let Some(root_win) = btn.root().and_then(|r| r.downcast::<gtk4::ApplicationWindow>().ok()) {
+                                        use gtk4_layer_shell::LayerShell;
+                                        root_win.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
+                                    }
                                     entry_focus.grab_focus();
                                 }
                             });

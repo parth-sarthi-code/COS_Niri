@@ -28,7 +28,6 @@ impl QuickSettingsPopup {
         window.init_layer_shell();
         window.set_layer(Layer::Overlay);
         window.set_namespace("cos-quick-settings");
-        window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
 
         // Anchor to Bottom-Right floating above the bar shelf
         window.set_anchor(Edge::Bottom, true);
@@ -158,12 +157,15 @@ impl QuickSettingsPopup {
 
     /// Toggle visibility of the Quick Settings popup panel with slide animation
     pub fn toggle(&self) {
+        use gtk4_layer_shell::LayerShell;
         if self.window.is_visible() {
+            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
             crate::services::animation::slide_down_close(&self.window, 56);
         } else {
+            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
             self.stack.set_visible_child_name("main");
 
-            // 1. Trigger 165Hz slide-up animation IMMEDIATELY with 0 D-Bus blocking
+            // 1. Trigger 165Hz slide-up animation IMMEDIATELY with 0 Wayland focus switches
             crate::services::animation::slide_up_open(&self.window, 56);
 
             // 2. Defer background queries until animation completes (280ms duration)
