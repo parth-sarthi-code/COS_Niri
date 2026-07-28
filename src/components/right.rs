@@ -166,35 +166,27 @@ impl RightSection {
     pub fn get_battery_icon_code() -> &'static str {
         let info = BatteryService::get_info();
         if !info.is_present {
-            return "\u{e1a4}"; // AC power / full battery icon for desktop PC
+            return "\u{e2ae}"; // charger icon for desktop AC power
         }
 
         if info.status.eq_ignore_ascii_case("Charging") {
-            if info.capacity >= 90 {
-                "\u{f0a7}" // battery_charging_full
-            } else if info.capacity >= 70 {
-                "\u{e1a3}" // battery_charging_80
-            } else if info.capacity >= 50 {
-                "\u{e1a2}" // battery_charging_60
-            } else if info.capacity >= 30 {
-                "\u{e1a1}" // battery_charging_30
-            } else {
-                "\u{e1a0}" // battery_charging_20
-            }
+            "\u{e2ae}" // charger icon
+        } else if info.capacity < 10 {
+            "\u{e19c}" // battery_alert (less than 10%)
+        } else if info.capacity < 25 {
+            "\u{ebd9}" // battery_1_bar
+        } else if info.capacity < 40 {
+            "\u{ebdc}" // battery_2_bar
+        } else if info.capacity < 55 {
+            "\u{ebdf}" // battery_3_bar
+        } else if info.capacity < 70 {
+            "\u{ebe2}" // battery_4_bar
+        } else if info.capacity < 85 {
+            "\u{ebe4}" // battery_5_bar
+        } else if info.capacity < 95 {
+            "\u{ebe5}" // battery_6_bar
         } else {
-            if info.capacity >= 90 {
-                "\u{e1a4}" // battery_full
-            } else if info.capacity >= 70 {
-                "\u{e1a3}" // battery_6_bar
-            } else if info.capacity >= 50 {
-                "\u{e1a2}" // battery_5_bar
-            } else if info.capacity >= 30 {
-                "\u{e1a1}" // battery_3_bar
-            } else if info.capacity >= 15 {
-                "\u{e1a0}" // battery_2_bar
-            } else {
-                "\u{e19c}" // battery_alert
-            }
+            "\u{e1a4}" // battery_full
         }
     }
 }
