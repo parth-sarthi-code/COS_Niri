@@ -168,22 +168,27 @@ box.center-section {
 
 button.dock-item {
     background-color: transparent;
-    border-radius: 18px;
+    border-radius: 50%;
     min-width: 44px;
     min-height: 44px;
     padding: 0;
     margin: 0 2px;
     border: none;
-    transition: background-color 150ms ease;
+    box-shadow: none;
 }
 
-button.dock-item:hover {
-    background-color: rgba(255, 255, 255, 0.06);
+box.icon-bubble {
+    border-radius: 50%;
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+button.dock-item:hover box.icon-bubble {
+    background-color: rgba(255, 255, 255, 0.12);
 }
 
 button.dock-item.focused box.icon-bubble {
-    background-color: rgba(180, 197, 255, 0.20);
-    border-color: rgba(180, 197, 255, 0.30);
+    background-color: rgba(180, 197, 255, 0.22);
+    border: 1px solid rgba(180, 197, 255, 0.35);
 }
 
 /* Dot Indicators */
