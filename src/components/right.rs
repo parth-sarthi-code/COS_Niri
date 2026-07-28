@@ -175,6 +175,12 @@ impl RightSection {
         }
     }
 
+    /// Refresh main bar shelf Wi-Fi icon dynamically on D-Bus event
+    pub fn update_network_state(&self) {
+        let code = Self::get_wifi_icon_code();
+        self.wifi_icon.set_text(code);
+    }
+
     /// Update Bluetooth icon visibility and glyph based on connection state
     fn update_bt_icon(label: &Label) {
         if !BluetoothService::is_bluetooth_enabled() {

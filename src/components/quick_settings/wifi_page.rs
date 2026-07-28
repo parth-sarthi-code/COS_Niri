@@ -79,6 +79,9 @@ impl WifiPage {
     pub fn sync_state(&self) {
         let is_on = NetworkService::is_wifi_enabled();
         self.toggle_switch.set_active(is_on);
+        if is_on {
+            NetworkService::request_scan();
+        }
         Self::refresh_list(&self.list_box, is_on);
     }
 

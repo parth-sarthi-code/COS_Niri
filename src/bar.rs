@@ -18,7 +18,7 @@ pub struct BarWindow {
     pub window: ApplicationWindow,
     pub left_section: LeftSection,
     pub center_section: CenterSection,
-    pub right_section: RightSection,
+    pub right_section: Rc<RightSection>,
     pub quick_settings: Rc<QuickSettingsPopup>,
     pub calendar: Rc<CalendarPopup>,
 }
@@ -48,6 +48,21 @@ impl BarWindow {
         // Instantiate Calendar floating popup
         let calendar = Rc::new(CalendarPopup::new(app));
 
+        let left_section = LeftSection::new();
+        let center_section = CenterSection::new();
+
+        let qs_toggle_ref = Rc::clone(&quick_settings);
+        let cal_toggle_ref = Rc::clone(&calendar);
+
+        let right_section = Rc::new(RightSection::new(
+            move || {
+                qs_toggle_ref.toggle();
+            },
+            move || {
+                cal_toggle_ref.toggle();
+            },
+        ));
+
         // NetworkManager live event listener via channel (epoll sleep 0.0% CPU)
         let (net_tx, net_rx) = mpsc::channel::<()>();
         NetworkService::listen_events(move || {
@@ -55,12 +70,14 @@ impl BarWindow {
         });
 
         let qs_net = Rc::clone(&quick_settings);
+        let right_net = Rc::clone(&right_section);
         glib::timeout_add_local(Duration::from_millis(200), move || {
             let mut fired = false;
             while net_rx.try_recv().is_ok() {
                 fired = true;
             }
             if fired {
+                right_net.update_network_state();
                 GridSection::async_refresh(Rc::clone(&qs_net.grid));
             }
             glib::ControlFlow::Continue
@@ -87,21 +104,6 @@ impl BarWindow {
         // Main shelf container
         let main_box = GtkBox::new(Orientation::Horizontal, 0);
         main_box.add_css_class("cos-bar-container");
-
-        let left_section = LeftSection::new();
-        let center_section = CenterSection::new();
-
-        let qs_toggle_ref = Rc::clone(&quick_settings);
-        let cal_toggle_ref = Rc::clone(&calendar);
-
-        let right_section = RightSection::new(
-            move || {
-                qs_toggle_ref.toggle();
-            },
-            move || {
-                cal_toggle_ref.toggle();
-            },
-        );
 
         // Left — fixed to start
         left_section.container.set_halign(gtk4::Align::Start);
