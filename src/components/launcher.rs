@@ -21,16 +21,17 @@ impl LauncherPopup {
         window.set_layer(Layer::Overlay);
         window.set_namespace("cos-launcher");
 
-        // Fullscreen overlay anchors
-        window.set_anchor(Edge::Bottom, true);
-        window.set_anchor(Edge::Left, true);
-        window.set_anchor(Edge::Right, true);
-        window.set_anchor(Edge::Top, true);
+        // Center on screen by disabling all edge anchors
+        window.set_anchor(Edge::Bottom, false);
+        window.set_anchor(Edge::Left, false);
+        window.set_anchor(Edge::Right, false);
+        window.set_anchor(Edge::Top, false);
 
         window.add_css_class("launcher-popup-window");
 
         let container = GtkBox::new(Orientation::Vertical, 24);
         container.add_css_class("launcher-popup-container");
+        container.set_size_request(1100, 680);
         container.set_hexpand(true);
         container.set_vexpand(true);
         container.set_halign(gtk4::Align::Fill);

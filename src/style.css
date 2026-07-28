@@ -735,8 +735,10 @@ window.launcher-popup-window {
 }
 
 box.launcher-popup-container {
-    background-color: rgba(15, 17, 26, 0.65);
-    padding: 64px 80px 48px 80px; /* Spacious margins for Launchpad layout */
+    background-color: rgba(15, 17, 26, 0.76);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    padding: 40px 48px;
     box-shadow: none;
     font-family: "Outfit", "Roboto", sans-serif;
     color: #ffffff;
