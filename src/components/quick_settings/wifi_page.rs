@@ -6,6 +6,8 @@ use std::thread;
 
 pub struct WifiPage {
     pub container: GtkBox,
+    pub toggle_switch: Switch,
+    pub list_box: GtkBox,
 }
 
 impl WifiPage {
@@ -66,7 +68,18 @@ impl WifiPage {
         scrolled.set_child(Some(&list_box));
         container.append(&scrolled);
 
-        Self { container }
+        Self {
+            container,
+            toggle_switch,
+            list_box,
+        }
+    }
+
+    /// Synchronize Wi-Fi toggle switch and list state with D-Bus live state
+    pub fn sync_state(&self) {
+        let is_on = NetworkService::is_wifi_enabled();
+        self.toggle_switch.set_active(is_on);
+        Self::refresh_list(&self.list_box, is_on);
     }
 
     fn refresh_list(list_box: &GtkBox, is_on: bool) {

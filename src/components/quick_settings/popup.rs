@@ -17,6 +17,7 @@ pub struct QuickSettingsPopup {
     pub stack: Stack,
     pub grid: Rc<GridSection>,
     pub batt_label: Label,
+    pub wifi_page: Rc<WifiPage>,
 }
 
 impl QuickSettingsPopup {
@@ -47,6 +48,25 @@ impl QuickSettingsPopup {
 
         let stack_rc = Rc::new(RefCell::new(stack.clone()));
 
+        // --- SUB-PAGES ---
+        let st_back1 = Rc::clone(&stack_rc);
+        let wifi_page = Rc::new(WifiPage::new(move || {
+            st_back1.borrow().set_visible_child_name("main");
+        }));
+        stack.add_named(&wifi_page.container, Some("wifi"));
+
+        let st_back2 = Rc::clone(&stack_rc);
+        let bt_page = BtPage::new(move || {
+            st_back2.borrow().set_visible_child_name("main");
+        });
+        stack.add_named(&bt_page.container, Some("bt"));
+
+        let st_back3 = Rc::clone(&stack_rc);
+        let audio_page = AudioPage::new(move || {
+            st_back3.borrow().set_visible_child_name("main");
+        });
+        stack.add_named(&audio_page.container, Some("audio"));
+
         // --- PAGE 0: Main ChromeOS View ---
         let main_view = GtkBox::new(Orientation::Vertical, 12);
         main_view.add_css_class("qs-main-view");
@@ -65,9 +85,11 @@ impl QuickSettingsPopup {
         // 2. Feature Grid (6 Tiles)
         let st_wifi = Rc::clone(&stack_rc);
         let st_bt = Rc::clone(&stack_rc);
+        let wp_open = Rc::clone(&wifi_page);
 
         let grid = Rc::new(GridSection::new(
             move || {
+                wp_open.sync_state();
                 st_wifi.borrow().set_visible_child_name("wifi");
             },
             move || {
@@ -122,25 +144,6 @@ impl QuickSettingsPopup {
 
         stack.add_named(&main_view, Some("main"));
 
-        // --- SUB-PAGES ---
-        let st_back1 = Rc::clone(&stack_rc);
-        let wifi_page = WifiPage::new(move || {
-            st_back1.borrow().set_visible_child_name("main");
-        });
-        stack.add_named(&wifi_page.container, Some("wifi"));
-
-        let st_back2 = Rc::clone(&stack_rc);
-        let bt_page = BtPage::new(move || {
-            st_back2.borrow().set_visible_child_name("main");
-        });
-        stack.add_named(&bt_page.container, Some("bt"));
-
-        let st_back3 = Rc::clone(&stack_rc);
-        let audio_page = AudioPage::new(move || {
-            st_back3.borrow().set_visible_child_name("main");
-        });
-        stack.add_named(&audio_page.container, Some("audio"));
-
         popup_box.append(&stack);
         window.set_child(Some(&popup_box));
 
@@ -149,6 +152,7 @@ impl QuickSettingsPopup {
             stack,
             grid,
             batt_label: batt_lbl,
+            wifi_page,
         }
     }
 
@@ -157,17 +161,27 @@ impl QuickSettingsPopup {
         if self.window.is_visible() {
             crate::services::animation::slide_down_close(&self.window, 56);
         } else {
-            let batt_info = BatteryService::get_info();
-            let batt_str = if batt_info.is_present {
-                format!("{}% - {}", batt_info.capacity, batt_info.status)
-            } else {
-                "Plugged in - AC Power".to_string()
-            };
-            self.batt_label.set_text(&batt_str);
-
             self.stack.set_visible_child_name("main");
+
+            // 1. Trigger 165Hz slide-up animation IMMEDIATELY with 0 D-Bus blocking
             crate::services::animation::slide_up_open(&self.window, 56);
-            GridSection::async_refresh(Rc::clone(&self.grid));
+
+            // 2. Defer background queries until animation completes (280ms duration)
+            let grid_ref = Rc::clone(&self.grid);
+            let batt_ref = self.batt_label.clone();
+            let wifi_page_ref = Rc::clone(&self.wifi_page);
+
+            glib::timeout_add_local_once(std::time::Duration::from_millis(280), move || {
+                let batt_info = BatteryService::get_info();
+                let batt_str = if batt_info.is_present {
+                    format!("{}% - {}", batt_info.capacity, batt_info.status)
+                } else {
+                    "Plugged in - AC Power".to_string()
+                };
+                batt_ref.set_text(&batt_str);
+                GridSection::async_refresh(grid_ref);
+                wifi_page_ref.sync_state();
+            });
         }
     }
 }
