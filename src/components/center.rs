@@ -82,7 +82,7 @@ struct PinnedAppWidget {
     config: PinnedAppConfig,
     button: Button,
     dot: GtkBox,
-    exec_cmd: String,
+    focus_id_cell: Rc<RefCell<Option<u64>>>,
 }
 
 struct CenterState {
@@ -129,6 +129,19 @@ impl CenterSection {
                 .unwrap_or_else(|| config.fallback_exec.clone());
 
             let (button, dot) = Self::create_dock_button_nodes(&config.fixed_icon, &config.display_title);
+            let focus_id_cell = Rc::new(RefCell::new(None));
+
+            // CONNECT CLICK SIGNAL EXACTLY ONCE AT STARTUP
+            let focus_cell_clone = Rc::clone(&focus_id_cell);
+            let exec_cmd_clone = exec_cmd.clone();
+            button.connect_clicked(move |_| {
+                let target_id = *focus_cell_clone.borrow();
+                if let Some(id) = target_id {
+                    NiriIpcClient::focus_window(id);
+                } else {
+                    Self::launch_app(&exec_cmd_clone);
+                }
+            });
 
             container.append(&button);
 
@@ -136,7 +149,7 @@ impl CenterSection {
                 config,
                 button,
                 dot,
-                exec_cmd,
+                focus_id_cell,
             });
         }
 
@@ -353,17 +366,9 @@ impl CenterSection {
                         item.dot.add_css_class("dot-hidden");
                     }
 
+                    // Update current focus ID cell in-place WITHOUT re-connecting click signal
                     let focus_id = matching_windows.iter().find(|w| w.is_focused).or_else(|| matching_windows.first()).map(|w| w.id);
-                    let exec_cmd_clone = item.exec_cmd.clone();
-
-                    // Disconnect previous handlers & connect current click target
-                    item.button.connect_clicked(move |_| {
-                        if let Some(id) = focus_id {
-                            NiriIpcClient::focus_window(id);
-                        } else {
-                            Self::launch_app(&exec_cmd_clone);
-                        }
-                    });
+                    *item.focus_id_cell.borrow_mut() = focus_id;
                 }
 
                 // 2. Clear & Update Unpinned Open Apps section
