@@ -56,6 +56,25 @@ impl NetworkService {
         None
     }
 
+    /// Get signal strength (0-100%) of active connected Wi-Fi network
+    pub fn get_active_signal() -> Option<u32> {
+        if let Ok(output) = Command::new("nmcli")
+            .env("LC_ALL", "C")
+            .args(["-t", "-f", "ACTIVE,SIGNAL", "dev", "wifi"])
+            .output()
+        {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                if line.starts_with("yes:") {
+                    if let Ok(sig) = line["yes:".len()..].trim().parse::<u32>() {
+                        return Some(sig);
+                    }
+                }
+            }
+        }
+        None
+    }
+
     /// Scan available Wi-Fi networks
     pub fn scan_networks() -> Vec<WifiNetwork> {
         let mut networks = Vec::new();

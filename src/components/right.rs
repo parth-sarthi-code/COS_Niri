@@ -1,13 +1,16 @@
-use chrono::{Local, Timelike};
+use crate::services::battery::BatteryService;
+use crate::services::network::NetworkService;
+use chrono::Local;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Label, Orientation};
-use std::time::Duration;
 
 #[allow(dead_code)]
 pub struct RightSection {
     pub container: GtkBox,
     pub clock_label: Label,
     pub date_label: Label,
+    pub wifi_icon: Label,
+    pub batt_icon: Label,
 }
 
 impl RightSection {
@@ -88,16 +91,16 @@ impl RightSection {
         arrow_icon.set_valign(gtk4::Align::Center);
         pill.append(&arrow_icon);
 
-        // Wifi icon (Material Symbols: wifi U+E63E)
-        let wifi_icon = Label::new(Some("\u{e63e}"));
+        // Dynamic Wifi icon
+        let wifi_icon = Label::new(Some(Self::get_wifi_icon_code()));
         wifi_icon.add_css_class("ms-icon");
         wifi_icon.add_css_class("ms-icon-sm");
         wifi_icon.add_css_class("qs-icon");
         wifi_icon.set_valign(gtk4::Align::Center);
         pill.append(&wifi_icon);
 
-        // Battery icon (Material Symbols: battery_full U+E1A5)
-        let batt_icon = Label::new(Some("\u{e1a5}"));
+        // Dynamic Battery icon
+        let batt_icon = Label::new(Some(Self::get_battery_icon_code()));
         batt_icon.add_css_class("ms-icon");
         batt_icon.add_css_class("ms-icon-sm");
         batt_icon.add_css_class("qs-icon");
@@ -113,29 +116,85 @@ impl RightSection {
         pill_group.append(&pill_btn);
         container.append(&pill_group);
 
-        // Minute-aligned clock timer
-        let clock_clone = clock_label.clone();
-        let date_clone = date_label.clone();
-        let secs_remaining = 60 - (Local::now().second() as u64);
-        glib::timeout_add_local_once(Duration::from_secs(secs_remaining), move || {
-            let now = Local::now();
-            clock_clone.set_text(&now.format("%H:%M").to_string());
-            date_clone.set_text(&now.format("%b %-d").to_string());
+        // 5-second dynamic polling loop to update time, date, wifi, and battery
+        let clock_c = clock_label.clone();
+        let date_c = date_label.clone();
+        let wifi_c = wifi_icon.clone();
+        let batt_c = batt_icon.clone();
 
-            let cc = clock_clone.clone();
-            let dc = date_clone.clone();
-            glib::timeout_add_seconds_local(60, move || {
-                let now = Local::now();
-                cc.set_text(&now.format("%H:%M").to_string());
-                dc.set_text(&now.format("%b %-d").to_string());
-                glib::ControlFlow::Continue
-            });
+        glib::timeout_add_seconds_local(5, move || {
+            let now = Local::now();
+            clock_c.set_text(&now.format("%H:%M").to_string());
+            date_c.set_text(&now.format("%b %-d").to_string());
+            wifi_c.set_text(Self::get_wifi_icon_code());
+            batt_c.set_text(Self::get_battery_icon_code());
+            glib::ControlFlow::Continue
         });
 
         Self {
             container,
             clock_label,
             date_label,
+            wifi_icon,
+            batt_icon,
+        }
+    }
+
+    /// Dynamic Wi-Fi icon code based on connection state & signal strength
+    pub fn get_wifi_icon_code() -> &'static str {
+        if !NetworkService::is_wifi_enabled() {
+            return "\u{e648}"; // wifi_off
+        }
+        if let Some(signal) = NetworkService::get_active_signal() {
+            if signal >= 75 {
+                "\u{e63e}" // wifi_4_bar (full)
+            } else if signal >= 50 {
+                "\u{e63d}" // wifi_3_bar
+            } else if signal >= 25 {
+                "\u{e63c}" // wifi_2_bar
+            } else {
+                "\u{e63b}" // wifi_1_bar
+            }
+        } else if NetworkService::get_active_ssid().is_some() {
+            "\u{e63e}" // wifi connected default
+        } else {
+            "\u{e648}" // disconnected
+        }
+    }
+
+    /// Dynamic Battery icon code based on BatteryService status & percentage
+    pub fn get_battery_icon_code() -> &'static str {
+        let info = BatteryService::get_info();
+        if !info.is_present {
+            return "\u{e1a4}"; // AC power / full battery icon for desktop PC
+        }
+
+        if info.status.eq_ignore_ascii_case("Charging") {
+            if info.capacity >= 90 {
+                "\u{f0a7}" // battery_charging_full
+            } else if info.capacity >= 70 {
+                "\u{e1a3}" // battery_charging_80
+            } else if info.capacity >= 50 {
+                "\u{e1a2}" // battery_charging_60
+            } else if info.capacity >= 30 {
+                "\u{e1a1}" // battery_charging_30
+            } else {
+                "\u{e1a0}" // battery_charging_20
+            }
+        } else {
+            if info.capacity >= 90 {
+                "\u{e1a4}" // battery_full
+            } else if info.capacity >= 70 {
+                "\u{e1a3}" // battery_6_bar
+            } else if info.capacity >= 50 {
+                "\u{e1a2}" // battery_5_bar
+            } else if info.capacity >= 30 {
+                "\u{e1a1}" // battery_3_bar
+            } else if info.capacity >= 15 {
+                "\u{e1a0}" // battery_2_bar
+            } else {
+                "\u{e19c}" // battery_alert
+            }
         }
     }
 }
