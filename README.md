@@ -109,6 +109,14 @@ layer-rule {
 ## Screenshots
 Here are screenshots of the components running under Fedora 44 + Niri:
 
-| macOS Launchpad App Drawer | Quick Settings CC & Calendar |
+| macOS Launchpad App Drawer | Quick Settings Control Center |
 | :---: | :---: |
-| ![App Drawer](media/launcher.png) | ![Quick Settings & Calendar](media/quick_settings.png) |
+| ![App Drawer](media/app_drawer.png) | ![Quick Settings](media/quick_settings.png) |
+
+| Calendar Panel | Status Bar |
+| :---: | :---: |
+| ![Calendar](media/calendar.png) | ![Status Bar](media/bar.png) |
+
+| WiFi Connections | Audio Output Select |
+| :---: | :---: |
+| ![WiFi Panel](media/wifi_devices.png) | ![Audio Panel](media/audio_deviices.png) |
