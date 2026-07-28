@@ -16,6 +16,8 @@ use gtk4::{
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::mpsc;
+use std::time::Duration;
 
 pub struct QuickSettingsPopup {
     pub window: ApplicationWindow,
@@ -155,31 +157,39 @@ impl QuickSettingsPopup {
         popup_box.append(&stack);
         window.set_child(Some(&popup_box));
 
-        // --- ZERO-POLLING EVENT LISTENERS ---
+        // --- EVENT LISTENERS (epoll sleep 0.0% CPU) ---
         // 1. Kernel inotify watcher for hardware/software brightness changes
-        let (bright_tx, bright_rx) = std::sync::mpsc::channel::<u32>();
+        let (bright_tx, bright_rx) = mpsc::channel::<u32>();
         BrightnessService::listen_events(move |pct| {
             let _ = bright_tx.send(pct);
         });
 
         let s_bright = Rc::clone(&sliders);
-        glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+        glib::timeout_add_local(Duration::from_millis(150), move || {
+            let mut last_pct = None;
             while let Ok(pct) = bright_rx.try_recv() {
+                last_pct = Some(pct);
+            }
+            if let Some(pct) = last_pct {
                 s_bright.set_brightness_val(pct);
             }
             glib::ControlFlow::Continue
         });
 
         // 2. PipeWire audio stream listener for hardware volume / mute / sink hotplug events
-        let (audio_tx, audio_rx) = std::sync::mpsc::channel::<()>();
+        let (audio_tx, audio_rx) = mpsc::channel::<()>();
         AudioService::listen_events(move || {
             let _ = audio_tx.send(());
         });
 
         let s_audio = Rc::clone(&sliders);
         let ap_sync = Rc::clone(&audio_page);
-        glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+        glib::timeout_add_local(Duration::from_millis(150), move || {
+            let mut fired = false;
             while audio_rx.try_recv().is_ok() {
+                fired = true;
+            }
+            if fired {
                 let vol = AudioService::get_volume();
                 let is_muted = AudioService::is_muted();
                 s_audio.set_volume_val(vol, is_muted);

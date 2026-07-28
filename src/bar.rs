@@ -11,6 +11,7 @@ use gtk4::{Application, ApplicationWindow, Box as GtkBox, Orientation, Separator
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
 use std::rc::Rc;
 use std::sync::mpsc;
+use std::time::Duration;
 
 #[allow(dead_code)]
 pub struct BarWindow {
@@ -47,29 +48,37 @@ impl BarWindow {
         // Instantiate Calendar floating popup
         let calendar = Rc::new(CalendarPopup::new(app));
 
-        // NetworkManager live event listener via channel (instant 0ms event response)
+        // NetworkManager live event listener via channel (epoll sleep 0.0% CPU)
         let (net_tx, net_rx) = mpsc::channel::<()>();
         NetworkService::listen_events(move || {
             let _ = net_tx.send(());
         });
 
         let qs_net = Rc::clone(&quick_settings);
-        glib::idle_add_local(move || {
+        glib::timeout_add_local(Duration::from_millis(200), move || {
+            let mut fired = false;
             while net_rx.try_recv().is_ok() {
+                fired = true;
+            }
+            if fired {
                 GridSection::async_refresh(Rc::clone(&qs_net.grid));
             }
             glib::ControlFlow::Continue
         });
 
-        // Bluetooth live event listener via channel (instant 0ms event response)
+        // Bluetooth live event listener via channel (epoll sleep 0.0% CPU)
         let (bt_tx, bt_rx) = mpsc::channel::<()>();
         BluetoothService::listen_events(move || {
             let _ = bt_tx.send(());
         });
 
         let qs_bt = Rc::clone(&quick_settings);
-        glib::idle_add_local(move || {
+        glib::timeout_add_local(Duration::from_millis(200), move || {
+            let mut fired = false;
             while bt_rx.try_recv().is_ok() {
+                fired = true;
+            }
+            if fired {
                 GridSection::async_refresh(Rc::clone(&qs_bt.grid));
             }
             glib::ControlFlow::Continue
