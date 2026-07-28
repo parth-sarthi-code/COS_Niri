@@ -228,10 +228,10 @@ impl CalendarPopup {
 
     pub fn toggle(&self) {
         if self.window.is_visible() {
-            self.window.set_visible(false);
+            crate::services::animation::slide_down_close(&self.window, 56);
         } else {
             self.go_today();
-            self.window.present();
+            crate::services::animation::slide_up_open(&self.window, 56);
         }
     }
 }

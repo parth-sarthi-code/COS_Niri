@@ -14,6 +14,10 @@ fn main() {
     // Fix #2: Ensure Material Symbols + Roboto fonts are installed before GTK init
     ensure_fonts_installed();
 
+    // Pre-cache display refresh rate for animation tick callbacks (165Hz)
+    let hz = services::animation::get_refresh_rate();
+    eprintln!("[startup] Display refresh rate cached: {hz} Hz");
+
     let app = Application::builder()
         .application_id("com.chromeos.niri.bar")
         .flags(gio::ApplicationFlags::NON_UNIQUE)

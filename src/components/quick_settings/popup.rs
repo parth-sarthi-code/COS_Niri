@@ -151,10 +151,10 @@ impl QuickSettingsPopup {
         }
     }
 
-    /// Toggle visibility of the Quick Settings popup panel
+    /// Toggle visibility of the Quick Settings popup panel with slide animation
     pub fn toggle(&self) {
         if self.window.is_visible() {
-            self.window.set_visible(false);
+            crate::services::animation::slide_down_close(&self.window, 56);
         } else {
             let batt_info = BatteryService::get_info();
             let batt_str = if batt_info.is_present {
@@ -165,7 +165,7 @@ impl QuickSettingsPopup {
             self.batt_label.set_text(&batt_str);
 
             self.stack.set_visible_child_name("main");
-            self.window.present();
+            crate::services::animation::slide_up_open(&self.window, 56);
             GridSection::async_refresh(Rc::clone(&self.grid));
         }
     }
