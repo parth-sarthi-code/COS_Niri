@@ -129,20 +129,39 @@ impl RightSection {
         pill_group.append(&pill_btn);
         container.append(&pill_group);
 
-        // 3-second dynamic polling loop to update time, date, wifi, battery, and bluetooth
+        // Initial clock, date, battery, and bluetooth update
+        let now = Local::now();
+        clock_label.set_text(&now.format("%H:%M").to_string());
+        date_label.set_text(&now.format("%b %-d").to_string());
+        batt_icon.set_text(Self::get_battery_icon_code());
+
+        // 1. Clock & Date: Align update to top of the next minute, then repeat every 60s
         let clock_c = clock_label.clone();
         let date_c = date_label.clone();
-        let wifi_c = wifi_icon.clone();
-        let batt_c = batt_icon.clone();
-        let bt_c = bt_icon.clone();
+        let secs_to_next_min = (60 - chrono::Timelike::second(&now)).max(1);
 
-        glib::timeout_add_seconds_local(3, move || {
-            let now = Local::now();
-            clock_c.set_text(&now.format("%H:%M").to_string());
-            date_c.set_text(&now.format("%b %-d").to_string());
-            wifi_c.set_text(Self::get_wifi_icon_code());
+        glib::timeout_add_seconds_local(secs_to_next_min, move || {
+            let n = Local::now();
+            clock_c.set_text(&n.format("%H:%M").to_string());
+            date_c.set_text(&n.format("%b %-d").to_string());
+
+            // After first minute boundary align, continue every 60 seconds
+            let c_c = clock_c.clone();
+            let d_c = date_c.clone();
+            glib::timeout_add_seconds_local(60, move || {
+                let inner_n = Local::now();
+                c_c.set_text(&inner_n.format("%H:%M").to_string());
+                d_c.set_text(&inner_n.format("%b %-d").to_string());
+                glib::ControlFlow::Continue
+            });
+
+            glib::ControlFlow::Break
+        });
+
+        // 2. Battery: Lightweight 30-second sysfs check (0 process forks)
+        let batt_c = batt_icon.clone();
+        glib::timeout_add_seconds_local(30, move || {
             batt_c.set_text(Self::get_battery_icon_code());
-            Self::update_bt_icon(&bt_c);
             glib::ControlFlow::Continue
         });
 
