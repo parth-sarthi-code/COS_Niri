@@ -56,6 +56,7 @@ impl LauncherPopup {
         let grid_scroll = ScrolledWindow::new();
         grid_scroll.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Automatic);
         grid_scroll.set_vexpand(true);
+        grid_scroll.set_hexpand(true);
         grid_scroll.add_css_class("launcher-grid-scroll");
 
         let flowbox = FlowBox::new();
@@ -65,7 +66,8 @@ impl LauncherPopup {
         flowbox.set_row_spacing(18);
         flowbox.set_column_spacing(16);
         flowbox.set_selection_mode(gtk4::SelectionMode::None);
-        flowbox.set_halign(gtk4::Align::Center);
+        flowbox.set_halign(gtk4::Align::Fill);
+        flowbox.set_hexpand(true);
         flowbox.add_css_class("launcher-flowbox");
 
         grid_scroll.set_child(Some(&flowbox));

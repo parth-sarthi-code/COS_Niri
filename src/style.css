@@ -736,7 +736,7 @@ window.launcher-popup-window {
 
 box.launcher-popup-container {
     background-color: rgba(15, 17, 26, 0.72);
-    padding: 48px 96px 12px 96px;
+    padding: 48px 120px 12px 120px;
     box-shadow: none;
     font-family: "Outfit", "Roboto", sans-serif;
     color: #ffffff;
