@@ -274,6 +274,24 @@ impl NetworkService {
         });
     }
 
+    /// Disconnect from a Wi-Fi connection asynchronously using worker thread
+    pub fn disconnect_network(ssid: Option<&str>) {
+        let s = ssid.map(|s| s.to_string());
+        crate::services::worker::TaskWorker::dispatch(move || {
+            if let Some(name) = s {
+                let _ = Command::new("nmcli")
+                    .env("LC_ALL", "C")
+                    .args(["connection", "down", "id", &name])
+                    .output();
+            } else {
+                let _ = Command::new("nmcli")
+                    .env("LC_ALL", "C")
+                    .args(["device", "disconnect", "wifi"])
+                    .output();
+            }
+        });
+    }
+
     /// Event stream listener via `nmcli monitor` for sub-second zero-polling network updates
     pub fn listen_events<F>(mut callback: F)
     where

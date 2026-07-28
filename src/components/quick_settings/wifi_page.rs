@@ -1,6 +1,6 @@
 use crate::services::network::{NetworkService, WifiNetwork};
 use gtk4::prelude::*;
-use gtk4::{Box as GtkBox, Button, Label, Orientation, ScrolledWindow, Switch};
+use gtk4::{Box as GtkBox, Button, Label, Orientation, PasswordEntry, ScrolledWindow, Switch};
 use std::sync::mpsc;
 use std::thread;
 
@@ -39,12 +39,8 @@ impl WifiPage {
         let is_on = NetworkService::is_wifi_enabled();
         let toggle_switch = Switch::new();
         toggle_switch.set_active(is_on);
-        toggle_switch.connect_state_set(|_, state| {
-            NetworkService::set_wifi_enabled(state);
-            glib::Propagation::Proceed
-        });
-        header.append(&toggle_switch);
 
+        header.append(&toggle_switch);
         container.append(&header);
 
         // Network List inside ScrolledWindow
@@ -56,107 +52,167 @@ impl WifiPage {
         let list_box = GtkBox::new(Orientation::Vertical, 4);
         list_box.add_css_class("qs-subpage-list");
 
-        if is_on {
-            let loading_lbl = Label::new(Some("Scanning networks..."));
-            loading_lbl.add_css_class("qs-subpage-empty");
-            list_box.append(&loading_lbl);
+        // Initial render
+        Self::refresh_list(&list_box, is_on);
 
-            let (sender, receiver) = mpsc::channel::<Vec<WifiNetwork>>();
-            let list_box_clone = list_box.clone();
-
-            thread::spawn(move || {
-                let networks = NetworkService::scan_networks();
-                let _ = sender.send(networks);
-            });
-
-            glib::idle_add_local(move || {
-                if let Ok(networks) = receiver.try_recv() {
-                    // Collect existing GTK Button items for recycling
-                    let mut existing_btns: Vec<Button> = Vec::new();
-                    let mut curr = list_box_clone.first_child();
-                    while let Some(child) = curr {
-                        if let Ok(btn) = child.clone().downcast::<Button>() {
-                            existing_btns.push(btn);
-                        }
-                        curr = child.next_sibling();
-                    }
-
-                    if !existing_btns.is_empty() && existing_btns.len() == networks.len() {
-                        // In-place widget recycling: update existing labels without destroying GTK widgets
-                        for (i, net) in networks.into_iter().enumerate() {
-                            let btn = &existing_btns[i];
-                            if let Some(child_box) = btn.child().and_then(|c| c.downcast::<GtkBox>().ok()) {
-                                // First child: Icon, Second child: SSID Label
-                                let mut b_curr = child_box.first_child();
-                                if let Some(icon) = b_curr {
-                                    b_curr = icon.next_sibling();
-                                }
-                                if let Some(ssid_lbl) = b_curr.and_then(|c| c.downcast::<Label>().ok()) {
-                                    ssid_lbl.set_text(&net.ssid);
-                                }
-                            }
-                            let ssid_clone = net.ssid.clone();
-                            btn.connect_clicked(move |_| {
-                                NetworkService::connect_network(&ssid_clone, None);
-                            });
-                        }
-                    } else {
-                        // Rebuild list if element count changed
-                        while let Some(child) = list_box_clone.first_child() {
-                            list_box_clone.remove(&child);
-                        }
-
-                        if networks.is_empty() {
-                            let empty_lbl = Label::new(Some("No networks found"));
-                            empty_lbl.add_css_class("qs-subpage-empty");
-                            list_box_clone.append(&empty_lbl);
-                        } else {
-                            for net in networks {
-                                let item_btn = Button::new();
-                                item_btn.add_css_class("qs-list-item");
-
-                                let row = GtkBox::new(Orientation::Horizontal, 8);
-                                let icon = Label::new(Some("\u{e63e}")); // wifi icon
-                                icon.add_css_class("ms-icon");
-                                row.append(&icon);
-
-                                let ssid_lbl = Label::new(Some(&net.ssid));
-                                ssid_lbl.add_css_class("qs-list-title");
-                                ssid_lbl.set_hexpand(true);
-                                ssid_lbl.set_halign(gtk4::Align::Start);
-                                row.append(&ssid_lbl);
-
-                                if net.is_connected {
-                                    let conn_lbl = Label::new(Some("Connected"));
-                                    conn_lbl.add_css_class("qs-list-connected");
-                                    row.append(&conn_lbl);
-                                }
-
-                                item_btn.set_child(Some(&row));
-
-                                let ssid_clone = net.ssid.clone();
-                                item_btn.connect_clicked(move |_| {
-                                    NetworkService::connect_network(&ssid_clone, None);
-                                });
-
-                                list_box_clone.append(&item_btn);
-                            }
-                        }
-                    }
-                    glib::ControlFlow::Break
-                } else {
-                    glib::ControlFlow::Continue
-                }
-            });
-        } else {
-            let off_lbl = Label::new(Some("Wi-Fi is turned off"));
-            off_lbl.add_css_class("qs-subpage-empty");
-            list_box.append(&off_lbl);
-        }
+        // Switch toggle handler
+        let list_box_clone = list_box.clone();
+        toggle_switch.connect_state_set(move |_, state| {
+            NetworkService::set_wifi_enabled(state);
+            Self::refresh_list(&list_box_clone, state);
+            glib::Propagation::Proceed
+        });
 
         scrolled.set_child(Some(&list_box));
         container.append(&scrolled);
 
         Self { container }
+    }
+
+    fn refresh_list(list_box: &GtkBox, is_on: bool) {
+        // Clear all list items
+        while let Some(child) = list_box.first_child() {
+            list_box.remove(&child);
+        }
+
+        if !is_on {
+            let off_lbl = Label::new(Some("Wi-Fi is turned off"));
+            off_lbl.add_css_class("qs-subpage-empty");
+            list_box.append(&off_lbl);
+            return;
+        }
+
+        let loading_lbl = Label::new(Some("Scanning networks..."));
+        loading_lbl.add_css_class("qs-subpage-empty");
+        list_box.append(&loading_lbl);
+
+        let (sender, receiver) = mpsc::channel::<Vec<WifiNetwork>>();
+        let list_box_c = list_box.clone();
+
+        thread::spawn(move || {
+            let networks = NetworkService::scan_networks();
+            let _ = sender.send(networks);
+        });
+
+        glib::idle_add_local(move || {
+            if let Ok(networks) = receiver.try_recv() {
+                // Clear loading label
+                while let Some(child) = list_box_c.first_child() {
+                    list_box_c.remove(&child);
+                }
+
+                if networks.is_empty() {
+                    let empty_lbl = Label::new(Some("No networks found"));
+                    empty_lbl.add_css_class("qs-subpage-empty");
+                    list_box_c.append(&empty_lbl);
+                } else {
+                    for net in networks {
+                        let item_container = GtkBox::new(Orientation::Vertical, 4);
+                        item_container.add_css_class("qs-wifi-item-container");
+
+                        let item_btn = Button::new();
+                        item_btn.add_css_class("qs-list-item");
+
+                        let row = GtkBox::new(Orientation::Horizontal, 8);
+                        row.set_valign(gtk4::Align::Center);
+
+                        // Icon code based on signal
+                        let icon_code = match net.signal {
+                            75..=100 => "\u{e1d8}",
+                            50..=74 => "\u{ebe1}",
+                            25..=49 => "\u{ebd6}",
+                            _ => "\u{ebe4}",
+                        };
+
+                        let icon = Label::new(Some(icon_code));
+                        icon.add_css_class("ms-icon");
+                        row.append(&icon);
+
+                        let ssid_lbl = Label::new(Some(&net.ssid));
+                        ssid_lbl.add_css_class("qs-list-title");
+                        ssid_lbl.set_hexpand(true);
+                        ssid_lbl.set_halign(gtk4::Align::Start);
+                        row.append(&ssid_lbl);
+
+                        if net.is_connected {
+                            let conn_lbl = Label::new(Some("Connected"));
+                            conn_lbl.add_css_class("qs-list-connected");
+                            row.append(&conn_lbl);
+
+                            // Disconnect button
+                            let disc_btn = Button::with_label("Disconnect");
+                            disc_btn.add_css_class("qs-today-btn");
+                            disc_btn.set_valign(gtk4::Align::Center);
+
+                            let ssid_disc = net.ssid.clone();
+                            let lb_ref = list_box_c.clone();
+                            disc_btn.connect_clicked(move |_| {
+                                NetworkService::disconnect_network(Some(&ssid_disc));
+                                let lb_c = lb_ref.clone();
+                                glib::timeout_add_seconds_local(1, move || {
+                                    Self::refresh_list(&lb_c, true);
+                                    glib::ControlFlow::Break
+                                });
+                            });
+                            row.append(&disc_btn);
+                        }
+
+                        item_btn.set_child(Some(&row));
+                        item_container.append(&item_btn);
+
+                        // If not connected, add expandable password prompt
+                        if !net.is_connected {
+                            let pass_box = GtkBox::new(Orientation::Horizontal, 6);
+                            pass_box.add_css_class("qs-pass-box");
+                            pass_box.set_visible(false);
+                            pass_box.set_margin_start(12);
+                            pass_box.set_margin_end(12);
+
+                            let pass_entry = PasswordEntry::new();
+                            pass_entry.set_placeholder_text(Some("Password"));
+                            pass_entry.set_hexpand(true);
+                            pass_box.append(&pass_entry);
+
+                            let connect_btn = Button::with_label("Connect");
+                            connect_btn.add_css_class("qs-today-btn");
+
+                            let ssid_conn = net.ssid.clone();
+                            let lb_ref2 = list_box_c.clone();
+                            let p_entry = pass_entry.clone();
+
+                            connect_btn.connect_clicked(move |_| {
+                                let pass_text = p_entry.text().to_string();
+                                let pass_opt = if pass_text.is_empty() {
+                                    None
+                                } else {
+                                    Some(pass_text.as_str())
+                                };
+                                NetworkService::connect_network(&ssid_conn, pass_opt);
+                                let lb_c = lb_ref2.clone();
+                                glib::timeout_add_seconds_local(2, move || {
+                                    Self::refresh_list(&lb_c, true);
+                                    glib::ControlFlow::Break
+                                });
+                            });
+
+                            pass_box.append(&connect_btn);
+                            item_container.append(&pass_box);
+
+                            // Toggle password box on item click
+                            let p_box_toggle = pass_box.clone();
+                            item_btn.connect_clicked(move |_| {
+                                let is_vis = p_box_toggle.is_visible();
+                                p_box_toggle.set_visible(!is_vis);
+                            });
+                        }
+
+                        list_box_c.append(&item_container);
+                    }
+                }
+                glib::ControlFlow::Break
+            } else {
+                glib::ControlFlow::Continue
+            }
+        });
     }
 }
