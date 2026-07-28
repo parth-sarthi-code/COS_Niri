@@ -184,6 +184,7 @@ impl QuickSettingsPopup {
 
         let s_audio = Rc::clone(&sliders);
         let ap_sync = Rc::clone(&audio_page);
+        let stack_ref = stack.clone();
         glib::timeout_add_local(Duration::from_millis(150), move || {
             let mut fired = false;
             while audio_rx.try_recv().is_ok() {
@@ -193,7 +194,11 @@ impl QuickSettingsPopup {
                 let vol = AudioService::get_volume();
                 let is_muted = AudioService::is_muted();
                 s_audio.set_volume_val(vol, is_muted);
-                ap_sync.sync_state();
+
+                // Only re-fetch pactl list sinks if Audio sub-page is currently visible
+                if stack_ref.visible_child_name().as_deref() == Some("audio") {
+                    ap_sync.sync_state();
+                }
             }
             glib::ControlFlow::Continue
         });

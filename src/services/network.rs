@@ -1,7 +1,5 @@
 use gio::prelude::*;
-use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
-use std::thread;
+use std::process::Command;
 
 #[derive(Debug, Clone)]
 pub struct WifiNetwork {
@@ -120,7 +118,7 @@ impl NetworkService {
                     if let Some(ref ap) = ap_path {
                         if ap != "/" && !ap.is_empty() {
                             // Read Strength property on AccessPoint
-                            signal = conn
+                            let sig_val = conn
                                 .call_sync(
                                     Some("org.freedesktop.NetworkManager"),
                                     ap,
@@ -137,116 +135,86 @@ impl NetworkService {
                                 )
                                 .ok()
                                 .and_then(|res| res.child_value(0).get::<glib::Variant>())
-                                .and_then(|v| v.get::<u8>())
-                                .map(|s| s as u32);
+                                .and_then(|v| v.get::<u8>());
+
+                            if let Some(s) = sig_val {
+                                signal = Some(s as u32);
+                            }
                         }
                     }
                 }
             }
 
-            return NetworkState {
+            NetworkState {
                 is_enabled,
                 ssid,
                 signal,
-            };
+            }
+        } else {
+            NetworkState::default()
         }
-
-        // Fallback via CLI if D-Bus system bus is unreachable
-        Self::get_state_cli()
     }
 
-    /// Check if Wi-Fi interface radio is enabled
+    /// Check if Wi-Fi interface is enabled via native D-Bus
     pub fn is_wifi_enabled() -> bool {
         Self::get_state().is_enabled
     }
 
-    /// Toggle Wi-Fi power ON/OFF asynchronously using worker thread
-    pub fn set_wifi_enabled(enabled: bool) {
-        let arg = if enabled { "on" } else { "off" };
+    /// Toggle Wi-Fi state via native D-Bus IPC (0 process forks)
+    pub fn set_wifi_enabled(enable: bool) {
         crate::services::worker::TaskWorker::dispatch(move || {
-            let _ = Command::new("nmcli")
-                .env("LC_ALL", "C")
-                .args(["radio", "wifi", arg])
-                .output();
+            if let Ok(conn) = gio::bus_get_sync(gio::BusType::System, gio::Cancellable::NONE) {
+                let _ = conn.call_sync(
+                    Some("org.freedesktop.NetworkManager"),
+                    "/org/freedesktop/NetworkManager",
+                    "org.freedesktop.DBus.Properties",
+                    "Set",
+                    Some(&(
+                        "org.freedesktop.NetworkManager",
+                        "WirelessEnabled",
+                        enable.to_variant(),
+                    ).to_variant()),
+                    None,
+                    gio::DBusCallFlags::NONE,
+                    -1,
+                    gio::Cancellable::NONE,
+                );
+            }
         });
     }
 
-    /// Get currently active connected Wi-Fi SSID
+    /// Get active SSID via D-Bus
     pub fn get_active_ssid() -> Option<String> {
         Self::get_state().ssid
     }
 
-    /// Get signal strength (0-100%) of active connected Wi-Fi network
+    /// Get active signal percentage via D-Bus
     pub fn get_active_signal() -> Option<u32> {
         Self::get_state().signal
     }
 
-    /// Fallback CLI state parser
-    fn get_state_cli() -> NetworkState {
-        let is_enabled = if let Ok(output) = Command::new("nmcli")
-            .env("LC_ALL", "C")
-            .args(["radio", "wifi"])
-            .output()
-        {
-            String::from_utf8_lossy(&output.stdout)
-                .trim()
-                .eq_ignore_ascii_case("enabled")
-        } else {
-            false
-        };
-
-        let mut ssid = None;
-        let mut signal = None;
-
-        if is_enabled {
-            if let Ok(output) = Command::new("nmcli")
-                .env("LC_ALL", "C")
-                .args(["-t", "-f", "ACTIVE,SSID,SIGNAL", "dev", "wifi"])
-                .output()
-            {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                for line in stdout.lines() {
-                    if line.starts_with("yes:") {
-                        let parts: Vec<&str> = line["yes:".len()..].split(':').collect();
-                        if !parts.is_empty() && !parts[0].is_empty() {
-                            ssid = Some(parts[0].trim().to_string());
-                        }
-                        if parts.len() >= 2 {
-                            signal = parts[1].trim().parse::<u32>().ok();
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-
-        NetworkState {
-            is_enabled,
-            ssid,
-            signal,
-        }
+    /// Scan Wi-Fi networks asynchronously
+    pub fn scan_networks() -> Vec<WifiNetwork> {
+        Self::get_scanned_networks()
     }
 
-    /// Scan available Wi-Fi networks
-    pub fn scan_networks() -> Vec<WifiNetwork> {
-        let mut networks = Vec::new();
-
+    pub fn get_scanned_networks() -> Vec<WifiNetwork> {
+        let mut list = Vec::new();
         if let Ok(output) = Command::new("nmcli")
             .env("LC_ALL", "C")
-            .args(["-t", "-f", "SSID,SIGNAL,ACTIVE", "dev", "wifi", "list"])
+            .args(["-t", "-f", "IN-USE,SSID,SIGNAL", "device", "wifi", "list"])
             .output()
         {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
-                // Line format: "SSID:SIGNAL:ACTIVE" (escaping colons)
                 let parts: Vec<&str> = line.split(':').collect();
                 if parts.len() >= 3 {
-                    let ssid = parts[0].trim().to_string();
-                    let signal = parts[1].parse::<u32>().unwrap_or(0);
-                    let is_connected = parts[2].eq_ignore_ascii_case("yes");
+                    let is_connected = parts[0].trim() == "*";
+                    let ssid = parts[1].trim().to_string();
+                    let signal = parts[2].trim().parse::<u32>().unwrap_or(0);
 
-                    if !ssid.is_empty() && !networks.iter().any(|n: &WifiNetwork| n.ssid == ssid) {
-                        networks.push(WifiNetwork {
+                    if !ssid.is_empty() && !list.iter().any(|n: &WifiNetwork| n.ssid == ssid) {
+                        list.push(WifiNetwork {
                             ssid,
                             signal,
                             is_connected,
@@ -255,12 +223,14 @@ impl NetworkService {
                 }
             }
         }
-
-        networks
+        list
     }
 
-    /// Connect to a Wi-Fi network asynchronously using worker thread
     pub fn connect_network(ssid: &str, password: Option<&str>) {
+        Self::connect_to_network(ssid, password);
+    }
+
+    pub fn connect_to_network(ssid: &str, password: Option<&str>) {
         let s = ssid.to_string();
         let p = password.map(|pass| pass.to_string());
         crate::services::worker::TaskWorker::dispatch(move || {
@@ -274,20 +244,8 @@ impl NetworkService {
         });
     }
 
-    /// Disconnect from a Wi-Fi connection asynchronously using worker thread
-    pub fn disconnect_network(ssid: Option<&str>) {
-        let s = ssid.map(|s| s.to_string());
+    pub fn disconnect_network(_ssid: Option<&str>) {
         crate::services::worker::TaskWorker::dispatch(move || {
-            if let Some(ref name) = s {
-                let _ = Command::new("nmcli")
-                    .env("LC_ALL", "C")
-                    .args(["connection", "down", "id", name])
-                    .output();
-            }
-            let _ = Command::new("nmcli")
-                .env("LC_ALL", "C")
-                .args(["device", "disconnect", "wlp0s20f3"])
-                .output();
             let _ = Command::new("nmcli")
                 .env("LC_ALL", "C")
                 .args(["device", "disconnect", "wlan0"])
@@ -295,24 +253,31 @@ impl NetworkService {
         });
     }
 
-    /// Event stream listener via `nmcli monitor` for sub-second zero-polling network updates
-    pub fn listen_events<F>(mut callback: F)
+    /// Pure Native GIO D-Bus event stream listener for NetworkManager signals (0 nmcli child processes)
+    pub fn listen_events<F>(callback: F)
     where
-        F: FnMut() + Send + 'static,
+        F: Fn() + Send + 'static,
     {
-        thread::spawn(move || {
-            if let Ok(mut child) = Command::new("nmcli")
-                .env("LC_ALL", "C")
-                .arg("monitor")
-                .stdout(Stdio::piped())
-                .spawn()
-            {
-                if let Some(stdout) = child.stdout.take() {
-                    let reader = BufReader::new(stdout);
-                    for _line in reader.lines().flatten() {
+        std::thread::spawn(move || {
+            if let Ok(conn) = gio::bus_get_sync(gio::BusType::System, gio::Cancellable::NONE) {
+                let _sub_id = conn.signal_subscribe(
+                    Some("org.freedesktop.NetworkManager"),
+                    Some("org.freedesktop.DBus.Properties"),
+                    Some("PropertiesChanged"),
+                    None,
+                    None,
+                    gio::DBusSignalFlags::NONE,
+                    move |_, _, _, _, _, _| {
                         callback();
-                    }
-                }
+                    },
+                );
+
+                // Keep thread worker alive in D-Bus main loop
+                let loop_ctx = glib::MainContext::new();
+                let main_loop = glib::MainLoop::new(Some(&loop_ctx), false);
+                let _ = loop_ctx.with_thread_default(|| {
+                    main_loop.run();
+                });
             }
         });
     }
