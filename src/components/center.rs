@@ -85,10 +85,16 @@ struct PinnedAppWidget {
     focus_id_cell: Rc<RefCell<Option<u64>>>,
 }
 
+struct UnpinnedAppWidget {
+    button: Button,
+    focus_id_cell: Rc<RefCell<Option<u64>>>,
+}
+
 struct CenterState {
     container: Rc<GtkBox>,
     pinned_widgets: Vec<PinnedAppWidget>,
     unpinned_box: GtkBox,
+    unpinned_widgets: HashMap<String, UnpinnedAppWidget>,
 }
 
 thread_local! {
@@ -105,7 +111,6 @@ impl CenterSection {
         container.add_css_class("center-section");
         container.set_valign(gtk4::Align::Center);
 
-        // Single-pass IconTheme setup for Flatpak paths
         Self::init_icon_theme();
 
         let pinned_configs = Self::load_pinned_configs();
@@ -114,7 +119,6 @@ impl CenterSection {
         let mut pinned_widgets = Vec::new();
 
         for config in pinned_configs {
-            // Match desktop entry for exact launcher command
             let found_entry = desktop_entries.values().find(|entry| {
                 let id_lower = entry.desktop_id.to_lowercase();
                 let name_lower = entry.name.to_lowercase();
@@ -131,7 +135,6 @@ impl CenterSection {
             let (button, dot) = Self::create_dock_button_nodes(&config.fixed_icon, &config.display_title);
             let focus_id_cell = Rc::new(RefCell::new(None));
 
-            // CONNECT CLICK SIGNAL EXACTLY ONCE AT STARTUP
             let focus_cell_clone = Rc::clone(&focus_id_cell);
             let exec_cmd_clone = exec_cmd.clone();
             button.connect_clicked(move |_| {
@@ -160,13 +163,13 @@ impl CenterSection {
             container: Rc::clone(&container),
             pinned_widgets,
             unpinned_box,
+            unpinned_widgets: HashMap::new(),
         };
 
         CENTER_STATE.with(|cell| {
             *cell.borrow_mut() = Some(state);
         });
 
-        // Initial window update from Niri
         if let Ok(windows) = NiriIpcClient::get_windows() {
             Self::update_dock(&windows);
         } else {
@@ -316,14 +319,14 @@ impl CenterSection {
         });
     }
 
-    /// In-place DOM state update for dock buttons (0 GTK container re-creation)
+    /// Optimized in-place DOM state updates for both pinned and unpinned dock buttons
     pub fn update_dock(windows: &[Window]) {
         CENTER_STATE.with(|cell| {
             let mut state_borrow = cell.borrow_mut();
             if let Some(state) = state_borrow.as_mut() {
                 let mut claimed_window_ids = Vec::new();
 
-                // 1. Mutate Pinned App Buttons in-place (Zero GTK Widget Destruction!)
+                // 1. Mutate Pinned App Buttons in-place
                 for item in &mut state.pinned_widgets {
                     let matching_windows: Vec<&Window> = windows
                         .iter()
@@ -344,7 +347,6 @@ impl CenterSection {
                     let is_running = !matching_windows.is_empty();
                     let is_focused = matching_windows.iter().any(|w| w.is_focused);
 
-                    // Mutate CSS classes directly in-place
                     item.button.remove_css_class("focused");
                     item.button.remove_css_class("running");
 
@@ -366,16 +368,11 @@ impl CenterSection {
                         item.dot.add_css_class("dot-hidden");
                     }
 
-                    // Update current focus ID cell in-place WITHOUT re-connecting click signal
                     let focus_id = matching_windows.iter().find(|w| w.is_focused).or_else(|| matching_windows.first()).map(|w| w.id);
                     *item.focus_id_cell.borrow_mut() = focus_id;
                 }
 
-                // 2. Clear & Update Unpinned Open Apps section
-                while let Some(child) = state.unpinned_box.first_child() {
-                    state.unpinned_box.remove(&child);
-                }
-
+                // 2. Optimized Unpinned Open Apps with caching
                 let unpinned_windows: Vec<&Window> = windows
                     .iter()
                     .filter(|w| !claimed_window_ids.contains(&w.id))
@@ -391,40 +388,77 @@ impl CenterSection {
                     }
                 }
 
+                let current_unpinned_ids: Vec<String> = unpinned_groups.iter().map(|(id, _)| id.clone()).collect();
+                let old_unpinned_ids: Vec<String> = state.unpinned_widgets.keys().cloned().collect();
+
+                // Remove closed unpinned widgets
+                for old_id in old_unpinned_ids {
+                    if !current_unpinned_ids.contains(&old_id) {
+                        if let Some(widget) = state.unpinned_widgets.remove(&old_id) {
+                            state.unpinned_box.remove(&widget.button);
+                        }
+                    }
+                }
+
                 let desktop_entries = Self::scan_desktop_entries();
 
                 for (app_id, group_windows) in unpinned_groups {
                     let is_focused = group_windows.iter().any(|w| w.is_focused);
-                    let display_title = group_windows
-                        .first()
-                        .and_then(|w| w.title.clone())
-                        .unwrap_or_else(|| app_id.clone());
-
-                    let app_id_lower = app_id.to_lowercase();
-                    let found_entry = desktop_entries.values().find(|entry| {
-                        let id_lower = entry.desktop_id.to_lowercase();
-                        let name_lower = entry.name.to_lowercase();
-                        let exec_lower = entry.exec.to_lowercase();
-                        id_lower.contains(&app_id_lower) || name_lower.contains(&app_id_lower) || exec_lower.contains(&app_id_lower)
-                    });
-
-                    let icon_name = found_entry.map(|e| e.icon.as_str()).unwrap_or(&app_id);
-                    let (btn, _) = Self::create_dock_button_nodes(icon_name, &display_title);
-
-                    if is_focused {
-                        btn.add_css_class("focused");
-                    } else {
-                        btn.add_css_class("running");
-                    }
-
                     let focus_id = group_windows.iter().find(|w| w.is_focused).or_else(|| group_windows.first()).map(|w| w.id);
-                    if let Some(id) = focus_id {
-                        btn.connect_clicked(move |_| {
-                            NiriIpcClient::focus_window(id);
-                        });
-                    }
 
-                    state.unpinned_box.append(&btn);
+                    if let Some(widget) = state.unpinned_widgets.get(&app_id) {
+                        // Mutate in-place
+                        widget.button.remove_css_class("focused");
+                        widget.button.remove_css_class("running");
+
+                        if is_focused {
+                            widget.button.add_css_class("focused");
+                        } else {
+                            widget.button.add_css_class("running");
+                        }
+
+                        *widget.focus_id_cell.borrow_mut() = focus_id;
+                    } else {
+                        // Create new unpinned widget
+                        let display_title = group_windows
+                            .first()
+                            .and_then(|w| w.title.clone())
+                            .unwrap_or_else(|| app_id.clone());
+
+                        let app_id_lower = app_id.to_lowercase();
+                        let found_entry = desktop_entries.values().find(|entry| {
+                            let id_lower = entry.desktop_id.to_lowercase();
+                            let name_lower = entry.name.to_lowercase();
+                            let exec_lower = entry.exec.to_lowercase();
+                            id_lower.contains(&app_id_lower) || name_lower.contains(&app_id_lower) || exec_lower.contains(&app_id_lower)
+                        });
+
+                        let icon_name = found_entry.map(|e| e.icon.as_str()).unwrap_or(&app_id);
+                        let (btn, _) = Self::create_dock_button_nodes(icon_name, &display_title);
+
+                        if is_focused {
+                            btn.add_css_class("focused");
+                        } else {
+                            btn.add_css_class("running");
+                        }
+
+                        let focus_id_cell = Rc::new(RefCell::new(focus_id));
+                        let focus_cell_clone = Rc::clone(&focus_id_cell);
+                        btn.connect_clicked(move |_| {
+                            if let Some(id) = *focus_cell_clone.borrow() {
+                                NiriIpcClient::focus_window(id);
+                            }
+                        });
+
+                        state.unpinned_box.append(&btn);
+                        state.unpinned_widgets.insert(
+                            app_id,
+                            UnpinnedAppWidget {
+                                button: btn,
+                                focus_id_cell,
+                            },
+                        );
+                    }
                 }
             }
         });

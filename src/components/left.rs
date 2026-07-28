@@ -9,6 +9,7 @@ use std::rc::Rc;
 struct WorkspaceState {
     workspace_box: GtkBox,
     pills: HashMap<u64, Button>,
+    current_order: Vec<u64>,
 }
 
 thread_local! {
@@ -65,6 +66,7 @@ impl LeftSection {
         let state = Rc::new(RefCell::new(WorkspaceState {
             workspace_box: workspace_box.clone(),
             pills: HashMap::new(),
+            current_order: Vec::new(),
         }));
 
         STATE.with(|cell| {
@@ -75,7 +77,6 @@ impl LeftSection {
         if let Ok(workspaces) = NiriIpcClient::get_workspaces() {
             Self::update_workspaces(&state, workspaces);
         } else {
-            // Fallback static pills 1..3 if niri is not running yet
             Self::init_fallback(&state);
         }
 
@@ -85,27 +86,29 @@ impl LeftSection {
         Self { container, workspace_box }
     }
 
-    /// Update workspace buttons when WorkspacesChanged event arrives.
+    /// Optimized workspace update with in-place CSS mutations (0 child re-parenting if order is unchanged)
     fn update_workspaces(state_rc: &Rc<RefCell<WorkspaceState>>, mut workspaces: Vec<NiriWorkspace>) {
         workspaces.sort_by_key(|ws| ws.idx);
         let mut state = state_rc.borrow_mut();
 
         // Find active workspace ID
         let active_id = workspaces.iter().find(|ws| ws.is_active || ws.is_focused).map(|ws| ws.id);
+        let new_order: Vec<u64> = workspaces.iter().map(|ws| ws.id).collect();
+
+        // Check if workspace set or order changed
+        let order_changed = state.current_order != new_order;
 
         // Remove pills for workspaces that no longer exist
-        let current_ids: Vec<u64> = workspaces.iter().map(|ws| ws.id).collect();
         let old_ids: Vec<u64> = state.pills.keys().cloned().collect();
-
         for old_id in old_ids {
-            if !current_ids.contains(&old_id) {
+            if !new_order.contains(&old_id) {
                 if let Some(btn) = state.pills.remove(&old_id) {
                     state.workspace_box.remove(&btn);
                 }
             }
         }
 
-        // Create or update pills
+        // Create or update pill properties
         for ws in &workspaces {
             let label_text = ws.name.clone().unwrap_or_else(|| ws.idx.to_string());
             let is_active = Some(ws.id) == active_id;
@@ -145,18 +148,21 @@ impl LeftSection {
             }
         }
 
-        // Re-append pills in sorted workspace index order
-        while let Some(child) = state.workspace_box.first_child() {
-            state.workspace_box.remove(&child);
-        }
-        for ws in &workspaces {
-            if let Some(btn) = state.pills.get(&ws.id) {
-                state.workspace_box.append(btn);
+        // Only re-append children if the workspace sequence or set actually changed
+        if order_changed {
+            while let Some(child) = state.workspace_box.first_child() {
+                state.workspace_box.remove(&child);
             }
+            for ws in &workspaces {
+                if let Some(btn) = state.pills.get(&ws.id) {
+                    state.workspace_box.append(btn);
+                }
+            }
+            state.current_order = new_order;
         }
     }
 
-    /// Update active workspace pill on WorkspaceActivated event
+    /// Update active workspace pill in-place on WorkspaceActivated event
     fn set_active_workspace(state_rc: &Rc<RefCell<WorkspaceState>>, active_id: u64) {
         let state = state_rc.borrow();
         for (&id, btn) in &state.pills {
@@ -170,6 +176,7 @@ impl LeftSection {
 
     fn init_fallback(state_rc: &Rc<RefCell<WorkspaceState>>) {
         let mut state = state_rc.borrow_mut();
+        let mut fallback_order = Vec::new();
         for i in 1..=3 {
             let btn = Button::with_label(&i.to_string());
             btn.add_css_class("ws-pill");
@@ -182,7 +189,9 @@ impl LeftSection {
             });
             state.workspace_box.append(&btn);
             state.pills.insert(i as u64, btn);
+            fallback_order.push(i as u64);
         }
+        state.current_order = fallback_order;
     }
 
     /// Background listener loop for Niri IPC events
