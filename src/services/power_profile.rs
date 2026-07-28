@@ -19,9 +19,9 @@ impl PowerProfile {
 
     pub fn icon_code(&self) -> &'static str {
         match self {
-            Self::Performance => "\u{e80e}", // speed (speedometer)
-            Self::Balanced => "\u{e429}",    // tune (sliders)
-            Self::PowerSaver => "\u{e80d}",  // eco (leaf)
+            Self::Performance => "\u{ebd2}", // electric_bolt
+            Self::Balanced => "\u{e924}",    // memory / CPU chip
+            Self::PowerSaver => "\u{e197}",  // battery_saver
         }
     }
 
