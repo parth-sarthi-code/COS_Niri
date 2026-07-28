@@ -1,6 +1,7 @@
 use crate::services::bluetooth::BluetoothService;
 use crate::services::network::NetworkService;
 use crate::services::night_light::NightLightService;
+use crate::services::power_profile::{PowerProfile, PowerProfileService};
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Grid, Label, Orientation};
 use std::process::Command;
@@ -17,6 +18,9 @@ pub struct GridSection {
     pub bt_sub: Label,
     pub night_btn: Button,
     pub night_sub: Label,
+    pub power_btn: Button,
+    pub power_icon: Label,
+    pub power_sub: Label,
 }
 
 impl GridSection {
@@ -45,13 +49,13 @@ impl GridSection {
             ("Wi-Fi", "Off")
         };
 
-        let (wifi_tile, wifi_btn, wifi_title, wifi_sub) = Self::create_feature_tile(
+        let (wifi_tile, wifi_btn, wifi_title, wifi_sub, _) = Self::create_feature_tile(
             "\u{e63e}", // wifi icon
             wifi_label,
             wifi_status,
             wifi_enabled,
             true, // Has sub-panel arrow
-            move |btn, sub_lbl| {
+            move |btn, sub_lbl, _| {
                 let curr = NetworkService::is_wifi_enabled();
                 let new_state = !curr;
                 NetworkService::set_wifi_enabled(new_state);
@@ -75,13 +79,13 @@ impl GridSection {
         let bt_enabled = BluetoothService::is_bluetooth_enabled();
         let bt_status = if bt_enabled { "On" } else { "Off" };
 
-        let (bt_tile, bt_btn, _bt_title, bt_sub) = Self::create_feature_tile(
+        let (bt_tile, bt_btn, _bt_title, bt_sub, _) = Self::create_feature_tile(
             "\u{e1a7}", // bluetooth icon
             "Bluetooth",
             bt_status,
             bt_enabled,
             true, // Has sub-panel arrow
-            move |btn, sub_lbl| {
+            move |btn, sub_lbl, _| {
                 let curr = BluetoothService::is_bluetooth_enabled();
                 let new_state = !curr;
                 BluetoothService::set_bluetooth_enabled(new_state);
@@ -102,13 +106,13 @@ impl GridSection {
         grid.attach(&bt_tile, 1, 0, 1, 1);
 
         // 3. Notifications / DND Tile (Col 2, Row 0)
-        let (dnd_tile, _, _, _) = Self::create_feature_tile(
+        let (dnd_tile, _, _, _, _) = Self::create_feature_tile(
             "\u{e7f4}", // notifications icon
             "Notifications",
             "On, all apps",
             true,
             false,
-            |_btn, _lbl| {
+            |_btn, _lbl, _| {
                 let _ = Command::new("swaync-client").args(["-t", "-sw"]).spawn();
             },
             || {},
@@ -121,13 +125,13 @@ impl GridSection {
         let is_night_on = NightLightService::is_enabled();
         let night_status = if is_night_on { "On" } else { "Off" };
 
-        let (night_tile, night_btn, _night_title, night_sub) = Self::create_feature_tile(
+        let (night_tile, night_btn, _night_title, night_sub, _) = Self::create_feature_tile(
             "\u{e51c}", // night light icon
             "Night Light",
             night_status,
             is_night_on,
             false,
-            move |btn, sub_lbl| {
+            move |btn, sub_lbl, _| {
                 let new_state = NightLightService::toggle();
                 if new_state {
                     btn.add_css_class("active");
@@ -146,30 +150,44 @@ impl GridSection {
         grid.attach(&night_tile, 0, 1, 1, 1);
 
         // 5. Screen Capture Tile (Col 1, Row 1)
-        let (capture_tile, _, _, _) = Self::create_feature_tile(
+        let (capture_tile, _, _, _, _) = Self::create_feature_tile(
             "\u{e412}", // camera icon
             "Screen capture",
             "",
             false,
             false,
-            |_btn, _lbl| {
+            |_btn, _lbl, _| {
                 let _ = Command::new("niri").args(["msg", "action", "screenshot"]).spawn();
             },
             || {},
         );
         grid.attach(&capture_tile, 1, 1, 1, 1);
 
-        // 6. Cast Tile (Col 2, Row 1)
-        let (cast_tile, _, _, _) = Self::create_feature_tile(
-            "\u{e307}", // cast icon
-            "Cast",
-            "",
+        // 6. Power Profile Tile (Col 2, Row 1 - Replaces Cast)
+        let curr_power = PowerProfileService::get_profile();
+        let (power_tile, power_btn, _power_title, power_sub, power_icon) = Self::create_feature_tile(
+            curr_power.icon_code(),
+            "Power mode",
+            curr_power.display_name(),
+            curr_power != PowerProfile::Balanced,
             false,
-            false,
-            |_btn, _lbl| {},
+            move |btn, sub_lbl, icon_lbl| {
+                let next = PowerProfileService::cycle_profile();
+                if let Some(lbl) = sub_lbl {
+                    lbl.set_text(next.display_name());
+                }
+                if let Some(icon) = icon_lbl {
+                    icon.set_text(next.icon_code());
+                }
+                if next != PowerProfile::Balanced {
+                    btn.add_css_class("active");
+                } else {
+                    btn.remove_css_class("active");
+                }
+            },
             || {},
         );
-        grid.attach(&cast_tile, 2, 1, 1, 1);
+        grid.attach(&power_tile, 2, 1, 1, 1);
 
         Self {
             container: grid,
@@ -180,24 +198,28 @@ impl GridSection {
             bt_sub: bt_sub.unwrap_or_else(|| Label::new(None)),
             night_btn,
             night_sub: night_sub.unwrap_or_else(|| Label::new(None)),
+            power_btn,
+            power_icon,
+            power_sub: power_sub.unwrap_or_else(|| Label::new(None)),
         }
     }
 
     /// Refresh live state asynchronously in background worker thread to ensure 0ms popup presentation
     pub fn async_refresh(grid_rc: Rc<Self>) {
-        let (sender, receiver) = mpsc::channel::<(bool, Option<String>, bool, bool)>();
+        let (sender, receiver) = mpsc::channel::<(bool, Option<String>, bool, bool, PowerProfile)>();
 
         thread::spawn(move || {
             let wifi_on = NetworkService::is_wifi_enabled();
             let wifi_ssid = NetworkService::get_active_ssid();
             let bt_on = BluetoothService::is_bluetooth_enabled();
             let night_on = NightLightService::is_enabled();
+            let power_prof = PowerProfileService::get_profile();
 
-            let _ = sender.send((wifi_on, wifi_ssid, bt_on, night_on));
+            let _ = sender.send((wifi_on, wifi_ssid, bt_on, night_on, power_prof));
         });
 
         glib::idle_add_local(move || {
-            if let Ok((wifi_on, wifi_ssid, bt_on, night_on)) = receiver.try_recv() {
+            if let Ok((wifi_on, wifi_ssid, bt_on, night_on, power_prof)) = receiver.try_recv() {
                 // Wi-Fi Tile
                 if let Some(ssid) = wifi_ssid {
                     grid_rc.wifi_btn.add_css_class("active");
@@ -231,6 +253,15 @@ impl GridSection {
                     grid_rc.night_sub.set_text("Off");
                 }
 
+                // Power Profile Tile
+                grid_rc.power_icon.set_text(power_prof.icon_code());
+                grid_rc.power_sub.set_text(power_prof.display_name());
+                if power_prof != PowerProfile::Balanced {
+                    grid_rc.power_btn.add_css_class("active");
+                } else {
+                    grid_rc.power_btn.remove_css_class("active");
+                }
+
                 glib::ControlFlow::Break
             } else {
                 glib::ControlFlow::Continue
@@ -246,9 +277,9 @@ impl GridSection {
         has_arrow: bool,
         on_toggle: FToggle,
         on_arrow: FArrow,
-    ) -> (GtkBox, Button, Label, Option<Label>)
+    ) -> (GtkBox, Button, Label, Option<Label>, Label)
     where
-        FToggle: Fn(&Button, &Option<Label>) + 'static,
+        FToggle: Fn(&Button, &Option<Label>, &Option<Label>) + 'static,
         FArrow: Fn() + 'static,
     {
         let tile_box = GtkBox::new(Orientation::Vertical, 4);
@@ -309,13 +340,14 @@ impl GridSection {
             None
         };
 
-        // Wire click listener with circle_btn and sub_label references
+        // Wire click listener with circle_btn, sub_label, and icon references
         let btn_clone = circle_btn.clone();
         let sub_lbl_clone = sub_label.clone();
+        let icon_clone = icon.clone();
         circle_btn.connect_clicked(move |_| {
-            on_toggle(&btn_clone, &sub_lbl_clone);
+            on_toggle(&btn_clone, &sub_lbl_clone, &Some(icon_clone.clone()));
         });
 
-        (tile_box, circle_btn, title_label, sub_label)
+        (tile_box, circle_btn, title_label, sub_label, icon)
     }
 }
