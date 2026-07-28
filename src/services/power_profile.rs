@@ -20,8 +20,8 @@ impl PowerProfile {
     pub fn icon_code(&self) -> &'static str {
         match self {
             Self::Performance => "\u{ebd2}", // electric_bolt
-            Self::Balanced => "\u{e924}",    // memory / CPU chip
-            Self::PowerSaver => "\u{e197}",  // battery_saver
+            Self::Balanced => "\u{e838}",    // balance settings icon
+            Self::PowerSaver => "\u{e1a5}",  // battery icon
         }
     }
 
