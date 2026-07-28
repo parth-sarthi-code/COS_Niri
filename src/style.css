@@ -566,70 +566,84 @@ box.cal-popup-container {
 
 /* Header */
 label.cal-month-title {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
     color: #ffffff;
 }
 
 button.cal-today-btn {
+    background-image: none;
     background-color: rgba(255, 255, 255, 0.10);
-    border-radius: 12px;
-    padding: 4px 12px;
-    font-size: 12px;
+    border-radius: 14px;
+    padding: 6px 14px;
+    font-size: 13px;
     font-weight: 500;
-    color: #e3e2e6;
+    color: #ffffff;
     border: none;
+    box-shadow: none;
 }
 
 button.cal-today-btn:hover {
+    background-image: none;
     background-color: rgba(255, 255, 255, 0.18);
 }
 
 button.cal-nav-btn {
+    background-image: none;
     background-color: rgba(255, 255, 255, 0.08);
     border-radius: 50%;
-    min-width: 32px;
-    min-height: 32px;
+    min-width: 36px;
+    min-height: 36px;
     padding: 0;
-    color: #e3e2e6;
+    color: #ffffff;
     border: none;
+    box-shadow: none;
+}
+
+button.cal-nav-btn label {
+    color: #ffffff;
 }
 
 button.cal-nav-btn:hover {
+    background-image: none;
     background-color: rgba(255, 255, 255, 0.16);
 }
 
 /* Days of Week Header Grid */
 grid.cal-dow-grid {
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
 label.cal-dow-label {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
-    color: #8e919e;
+    color: #a0a5b5;
 }
 
 /* Day Cells */
 button.cal-day-cell {
+    background-image: none;
     background: none;
     border: none;
     border-radius: 50%;
-    min-width: 36px;
-    min-height: 36px;
+    min-width: 42px;
+    min-height: 42px;
     padding: 0;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     color: #e3e2e6;
+    box-shadow: none;
     transition: background-color 150ms ease;
 }
 
 button.cal-day-cell.cal-active-month:hover {
+    background-image: none;
     background-color: rgba(255, 255, 255, 0.14);
 }
 
 /* Today Active Bubble */
 button.cal-day-cell.cal-today {
+    background-image: none;
     background-color: #a8c7fa;
     color: #003062;
     font-weight: 700;

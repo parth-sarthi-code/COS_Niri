@@ -25,13 +25,13 @@ impl CalendarPopup {
         window.set_anchor(Edge::Bottom, true);
         window.set_anchor(Edge::Right, true);
         window.set_margin(Edge::Bottom, 56);
-        window.set_margin(Edge::Right, 100);
+        window.set_margin(Edge::Right, 24);
 
         window.add_css_class("cal-popup-window");
 
-        let container = GtkBox::new(Orientation::Vertical, 16);
+        let container = GtkBox::new(Orientation::Vertical, 18);
         container.add_css_class("cal-popup-container");
-        container.set_size_request(320, -1);
+        container.set_size_request(370, -1);
 
         let today = Local::now().date_naive();
         let current_date = Rc::new(RefCell::new(today));
