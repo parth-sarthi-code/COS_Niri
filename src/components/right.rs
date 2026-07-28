@@ -175,53 +175,55 @@ impl RightSection {
         }
     }
 
-    /// Dynamic Wi-Fi icon code based on connection state & signal strength
-    /// Uses 4 distinct signal-level icons from Material Symbols Rounded
+    /// Dynamic Wi-Fi icon — exact codepoints from Google Fonts Material Symbols
+    /// ebe4 (1 bar), ebd6 (2 bar), ebe1 (3 bar), e1d8 (full)
     pub fn get_wifi_icon_code() -> &'static str {
         if !NetworkService::is_wifi_enabled() {
-            return "\u{e648}"; // wifi_off (U+E648) — verified present
+            return "\u{e648}"; // wifi_off
         }
 
-        // Try to get signal strength for granular icon
         if let Some(signal) = NetworkService::get_active_signal() {
             return match signal {
-                75..=100 => "\u{e1d8}",  // network_wifi full (U+E1D8)
-                50..=74  => "\u{ebe7}",  // network_wifi_3_bar (U+EBE7)
-                25..=49  => "\u{ebe6}",  // network_wifi_2_bar (U+EBE6)
-                _        => "\u{ebe4}",  // network_wifi_1_bar (U+EBE4)
+                75..=100 => "\u{e1d8}",  // wifi full
+                50..=74  => "\u{ebe1}",  // wifi 3 bar
+                25..=49  => "\u{ebd6}",  // wifi 2 bar
+                _        => "\u{ebe4}",  // wifi 1 bar
             };
         }
 
-        // Connected but signal not available (fallback to full icon)
+        // Connected but signal unavailable → full
         if NetworkService::get_active_ssid().is_some() {
-            "\u{e1d8}" // network_wifi (U+E1D8)
+            "\u{e1d8}"
         } else {
-            "\u{e648}" // wifi_off (U+E648)
+            "\u{e648}"
         }
     }
 
-    /// Dynamic Battery icon code based on BatteryService status & percentage
-    /// Uses 7 distinct battery level icons + charging + alert
+    /// Dynamic Battery icon — exact codepoints from Google Fonts Material Symbols
+    /// ebdc (0 bar), ebd9 (1 bar), ebe0 (2 bar), ebdd (3 bar),
+    /// ebe2 (4 bar), ebd4 (5 bar), ebd2 (6 bar)
+    /// e19c (battery_alert), e2ae (charger)
     pub fn get_battery_icon_code() -> &'static str {
         let info = BatteryService::get_info();
 
         if !info.is_present {
-            return "\u{e1a4}"; // battery_full for desktop/AC (U+E1A4)
+            return "\u{ebd2}"; // battery_6_bar for desktop/AC
         }
 
         if info.status.eq_ignore_ascii_case("Charging") {
-            return "\u{e1a3}"; // battery_charging_full (U+E1A3)
+            return "\u{e2ae}"; // charger
         }
 
         match info.capacity {
-            0..=9    => "\u{e19c}",  // battery_alert (U+E19C) — critical
-            10..=19  => "\u{ebd9}",  // battery_1_bar (U+EBD9)
-            20..=34  => "\u{ebdc}",  // battery_2_bar (U+EBDC)
-            35..=49  => "\u{ebdf}",  // battery_3_bar (U+EBDF)
-            50..=64  => "\u{ebe2}",  // battery_4_bar (U+EBE2)
-            65..=79  => "\u{ebe5}",  // battery_5_bar (U+EBE5)
-            80..=94  => "\u{f17e}",  // battery_6_bar (U+F17E)
-            _        => "\u{e1a4}",  // battery_full (U+E1A4)
+            0..=5    => "\u{e19c}",  // battery_alert — critical
+            6..=14   => "\u{ebdc}",  // battery_0_bar
+            15..=28  => "\u{ebd9}",  // battery_1_bar
+            29..=42  => "\u{ebe0}",  // battery_2_bar
+            43..=56  => "\u{ebdd}",  // battery_3_bar
+            57..=70  => "\u{ebe2}",  // battery_4_bar
+            71..=84  => "\u{ebd4}",  // battery_5_bar
+            85..=99  => "\u{ebd2}",  // battery_6_bar
+            _        => "\u{ebd2}",  // battery_6_bar (full)
         }
     }
 }
