@@ -295,14 +295,15 @@ label.qs-icon {
 /* === QUICK SETTINGS POPUP PANEL (ChromeOS Glassmorphism) === */
 window.qs-popup-window {
     background-color: transparent;
+    border-radius: 24px;
 }
 
 box.qs-popup-container {
-    background-color: rgba(18, 19, 26, 0.62);
+    background-color: rgba(18, 19, 26, 0.72);
     border-radius: 24px;
     padding: 20px 24px;
     border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
+    box-shadow: none;
     font-family: "Roboto", sans-serif;
     color: #e3e2e6;
 }
@@ -552,14 +553,15 @@ label.qs-subpage-empty {
 /* === CALENDAR POPUP PANEL (ChromeOS Glassmorphism) === */
 window.cal-popup-window {
     background-color: transparent;
+    border-radius: 24px;
 }
 
 box.cal-popup-container {
-    background-color: rgba(18, 19, 26, 0.62);
+    background-color: rgba(18, 19, 26, 0.72);
     border-radius: 24px;
     padding: 20px 24px;
     border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
+    box-shadow: none;
     font-family: "Roboto", sans-serif;
     color: #e3e2e6;
 }
