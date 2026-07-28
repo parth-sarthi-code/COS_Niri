@@ -4,10 +4,15 @@ use crate::components::quick_settings::grid::GridSection;
 use crate::components::quick_settings::header::HeaderSection;
 use crate::components::quick_settings::sliders::SlidersSection;
 use crate::components::quick_settings::wifi_page::WifiPage;
+use crate::services::audio::AudioService;
 use crate::services::battery::BatteryService;
+use crate::services::brightness::BrightnessService;
 use chrono::Local;
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Box as GtkBox, Label, Orientation, Separator, Stack, StackTransitionType};
+use gtk4::{
+    Application, ApplicationWindow, Box as GtkBox, Label, Orientation, Separator, Stack,
+    StackTransitionType,
+};
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -16,6 +21,7 @@ pub struct QuickSettingsPopup {
     pub window: ApplicationWindow,
     pub stack: Stack,
     pub grid: Rc<GridSection>,
+    pub sliders: Rc<SlidersSection>,
     pub batt_label: Label,
     pub wifi_page: Rc<WifiPage>,
 }
@@ -103,9 +109,9 @@ impl QuickSettingsPopup {
 
         // 3. Sliders (Volume & Brightness)
         let st_audio = Rc::clone(&stack_rc);
-        let sliders = SlidersSection::new(move || {
+        let sliders = Rc::new(SlidersSection::new(move || {
             st_audio.borrow().set_visible_child_name("audio");
-        });
+        }));
         main_view.append(&sliders.container);
 
         let sep3 = Separator::new(Orientation::Horizontal);
@@ -146,10 +152,42 @@ impl QuickSettingsPopup {
         popup_box.append(&stack);
         window.set_child(Some(&popup_box));
 
+        // --- ZERO-POLLING EVENT LISTENERS ---
+        // 1. Kernel inotify watcher for hardware/software brightness changes
+        let (bright_tx, bright_rx) = std::sync::mpsc::channel::<u32>();
+        BrightnessService::listen_events(move |pct| {
+            let _ = bright_tx.send(pct);
+        });
+
+        let s_bright = Rc::clone(&sliders);
+        glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+            while let Ok(pct) = bright_rx.try_recv() {
+                s_bright.set_brightness_val(pct);
+            }
+            glib::ControlFlow::Continue
+        });
+
+        // 2. PipeWire audio stream listener for hardware volume / mute / sink events
+        let (audio_tx, audio_rx) = std::sync::mpsc::channel::<()>();
+        AudioService::listen_events(move || {
+            let _ = audio_tx.send(());
+        });
+
+        let s_audio = Rc::clone(&sliders);
+        glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+            while audio_rx.try_recv().is_ok() {
+                let vol = AudioService::get_volume();
+                let is_muted = AudioService::is_muted();
+                s_audio.set_volume_val(vol, is_muted);
+            }
+            glib::ControlFlow::Continue
+        });
+
         Self {
             window,
             stack,
             grid,
+            sliders,
             batt_label: batt_lbl,
             wifi_page,
         }
@@ -164,6 +202,9 @@ impl QuickSettingsPopup {
         } else {
             self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
             self.stack.set_visible_child_name("main");
+
+            // Refresh sliders & mute status dynamically on panel open
+            self.sliders.refresh();
 
             // 1. Trigger 165Hz slide-up animation IMMEDIATELY with 0 Wayland focus switches
             crate::services::animation::slide_up_open(&self.window, 56);

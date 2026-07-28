@@ -173,13 +173,20 @@ impl AudioService {
         String::new()
     }
 
-    /// Set active audio output sink asynchronously using persistent worker thread
+    /// Set active audio output sink asynchronously using persistent worker thread (PipeWire + PulseAudio)
     pub fn set_default_sink(sink_name: &str) {
         let name = sink_name.to_string();
         crate::services::worker::TaskWorker::dispatch(move || {
+            // 1. PulseAudio compatibility fallback
             let _ = Command::new("pactl")
                 .env("LC_ALL", "C")
                 .args(["set-default-sink", &name])
+                .output();
+
+            // 2. WirePlumber / PipeWire native stream update
+            let _ = Command::new("wpctl")
+                .env("LC_ALL", "C")
+                .args(["set-default", &name])
                 .output();
         });
     }

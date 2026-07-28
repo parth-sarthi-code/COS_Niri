@@ -2,9 +2,15 @@ use crate::services::audio::AudioService;
 use crate::services::brightness::BrightnessService;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Label, Orientation, Scale};
+use std::cell::Cell;
+use std::rc::Rc;
 
 pub struct SlidersSection {
     pub container: GtkBox,
+    vol_scale: Scale,
+    vol_label: Label,
+    bright_scale: Scale,
+    is_updating: Rc<Cell<bool>>,
 }
 
 impl SlidersSection {
@@ -14,6 +20,8 @@ impl SlidersSection {
     {
         let container = GtkBox::new(Orientation::Vertical, 10);
         container.add_css_class("qs-sliders-section");
+
+        let is_updating = Rc::new(Cell::new(false));
 
         // 1. Volume Row
         let vol_row = GtkBox::new(Orientation::Horizontal, 8);
@@ -36,9 +44,13 @@ impl SlidersSection {
         vol_scale.add_css_class("qs-slider");
         vol_scale.set_hexpand(true);
         vol_scale.set_valign(gtk4::Align::Center);
-        vol_scale.connect_value_changed(|scale| {
-            let val = scale.value().round() as u32;
-            AudioService::set_volume(val);
+
+        let is_up_vol = Rc::clone(&is_updating);
+        vol_scale.connect_value_changed(move |scale| {
+            if !is_up_vol.get() {
+                let val = scale.value().round() as u32;
+                AudioService::set_volume(val);
+            }
         });
         vol_row.append(&vol_scale);
 
@@ -71,19 +83,60 @@ impl SlidersSection {
         bright_scale.add_css_class("qs-slider");
         bright_scale.set_hexpand(true);
         bright_scale.set_valign(gtk4::Align::Center);
-        bright_scale.connect_value_changed(|scale| {
-            let val = scale.value().round() as u32;
-            BrightnessService::set_brightness(val);
+
+        let is_up_bright = Rc::clone(&is_updating);
+        bright_scale.connect_value_changed(move |scale| {
+            if !is_up_bright.get() {
+                let val = scale.value().round() as u32;
+                BrightnessService::set_brightness(val);
+            }
         });
         bright_row.append(&bright_scale);
 
-        // Spacer to balance the layout width with volume row arrow
         let dummy_spacer = GtkBox::new(Orientation::Horizontal, 0);
         dummy_spacer.set_size_request(32, 32);
         bright_row.append(&dummy_spacer);
 
         container.append(&bright_row);
 
-        Self { container }
+        Self {
+            container,
+            vol_scale,
+            vol_label,
+            bright_scale,
+            is_updating,
+        }
+    }
+
+    /// Dynamically refresh sliders and mute icon
+    pub fn refresh(&self) {
+        self.is_updating.set(true);
+
+        let vol = AudioService::get_volume() as f64;
+        self.vol_scale.set_value(vol);
+
+        let icon = if AudioService::is_muted() { "\u{e04f}" } else { "\u{e050}" };
+        self.vol_label.set_text(icon);
+
+        let bright = BrightnessService::get_brightness() as f64;
+        self.bright_scale.set_value(bright);
+
+        self.is_updating.set(false);
+    }
+
+    /// Update brightness scale directly from inotify signal
+    pub fn set_brightness_val(&self, pct: u32) {
+        self.is_updating.set(true);
+        self.bright_scale.set_value(pct as f64);
+        self.is_updating.set(false);
+    }
+
+    /// Update volume scale directly from audio signal
+    pub fn set_volume_val(&self, pct: u32, is_muted: bool) {
+        self.is_updating.set(true);
+        self.vol_scale.set_value(pct as f64);
+        let icon = if is_muted { "\u{e04f}" } else { "\u{e050}" };
+        self.vol_label.set_text(icon);
+        self.is_updating.set(false);
     }
 }
