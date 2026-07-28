@@ -31,6 +31,10 @@ impl LauncherPopup {
 
         let container = GtkBox::new(Orientation::Vertical, 24);
         container.add_css_class("launcher-popup-container");
+        container.set_hexpand(true);
+        container.set_vexpand(true);
+        container.set_halign(gtk4::Align::Fill);
+        container.set_valign(gtk4::Align::Fill);
 
         // Center search pill at the top
         let search_box = GtkBox::new(Orientation::Horizontal, 0);
