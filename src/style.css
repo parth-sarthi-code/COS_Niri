@@ -215,19 +215,37 @@ box.right-section {
     min-height: 48px;
 }
 
+/* Date Pill Button */
+button.date-pill {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 0 14px;
+    min-height: 36px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    transition: background-color 180ms ease;
+}
+
+button.date-pill:hover {
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+button.date-pill:active {
+    background-color: rgba(255, 255, 255, 0.20);
+}
+
 label.date-label {
     font-size: 13px;
     font-weight: 500;
-    color: #cac4d0;
+    color: #e3e2e6;
     font-family: "Roboto", sans-serif;
-    margin: 0 6px;
+    margin: 0;
 }
 
 /* Quick Settings Status Pill */
 button.qs-pill {
     background-color: rgba(255, 255, 255, 0.08);
     border-radius: 18px;
-    padding: 0 12px;
+    padding: 0 14px;
     min-height: 36px;
     border: 1px solid rgba(255, 255, 255, 0.07);
     transition: background-color 180ms ease;

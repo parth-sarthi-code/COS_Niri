@@ -19,7 +19,7 @@ impl RightSection {
         container.add_css_class("right-section");
         container.set_valign(gtk4::Align::Center);
 
-        // Stylus button
+        // 1. Stylus Button
         let stylus_btn = Button::new();
         stylus_btn.add_css_class("icon-btn-circle");
         stylus_btn.set_tooltip_text(Some("Stylus Tools"));
@@ -42,25 +42,41 @@ impl RightSection {
         stylus_btn.set_child(Some(&stylus_wrap));
         container.append(&stylus_btn);
 
-        // Vertical separator
-        let sep = Separator::new(Orientation::Vertical);
-        sep.add_css_class("shelf-sep");
-        sep.set_valign(gtk4::Align::Center);
-        container.append(&sep);
+        // Separator between Stylus and Date Pill
+        let sep1 = Separator::new(Orientation::Vertical);
+        sep1.add_css_class("shelf-sep");
+        sep1.set_valign(gtk4::Align::Center);
+        container.append(&sep1);
 
-        // Date label
+        // 2. Date Pill Button (Clickable -> Notifications & Calendar)
+        let date_btn = Button::new();
+        date_btn.add_css_class("date-pill");
+        date_btn.set_tooltip_text(Some("Calendar & Notifications"));
+        date_btn.set_valign(gtk4::Align::Center);
+
         let date_label = Label::new(Some(&Local::now().format("%b %-d").to_string()));
         date_label.add_css_class("date-label");
         date_label.set_valign(gtk4::Align::Center);
-        container.append(&date_label);
+        date_btn.set_child(Some(&date_label));
 
-        // Quick Settings pill button
+        date_btn.connect_clicked(|_| {
+            let _ = std::process::Command::new("swaync-client").args(["-t", "-sw"]).spawn();
+        });
+        container.append(&date_btn);
+
+        // 3. Vertical Separator between Date Pill and Quick Settings Pill
+        let sep2 = Separator::new(Orientation::Vertical);
+        sep2.add_css_class("shelf-sep");
+        sep2.set_valign(gtk4::Align::Center);
+        container.append(&sep2);
+
+        // 4. Quick Settings Status Pill Button (Time | Dropdown Arrow | Wifi | Battery)
         let pill_btn = Button::new();
         pill_btn.add_css_class("qs-pill");
         pill_btn.set_tooltip_text(Some("Quick Settings"));
         pill_btn.set_valign(gtk4::Align::Center);
 
-        let pill = GtkBox::new(Orientation::Horizontal, 8);
+        let pill = GtkBox::new(Orientation::Horizontal, 6);
         pill.set_valign(gtk4::Align::Center);
         pill.set_halign(gtk4::Align::Center);
         pill.add_css_class("qs-pill-inner");
@@ -70,6 +86,14 @@ impl RightSection {
         clock_label.add_css_class("clock-label");
         clock_label.set_valign(gtk4::Align::Center);
         pill.append(&clock_label);
+
+        // Dropdown Arrow (▼)
+        let arrow_icon = Label::new(Some("\u{e5c5}")); // arrow_drop_down
+        arrow_icon.add_css_class("ms-icon");
+        arrow_icon.add_css_class("ms-icon-sm");
+        arrow_icon.add_css_class("qs-icon");
+        arrow_icon.set_valign(gtk4::Align::Center);
+        pill.append(&arrow_icon);
 
         // Wifi icon (Material Symbols: wifi U+E63E)
         let wifi_icon = Label::new(Some("\u{e63e}"));
@@ -115,6 +139,10 @@ impl RightSection {
             });
         });
 
-        Self { container, clock_label, date_label }
+        Self {
+            container,
+            clock_label,
+            date_label,
+        }
     }
 }
