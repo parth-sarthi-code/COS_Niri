@@ -300,6 +300,7 @@ impl CenterSection {
         let mut exec = None;
         let mut categories = Vec::new();
         let mut in_desktop_entry = false;
+        let mut no_display = false;
 
         for line in content.lines() {
             let line = line.trim();
@@ -330,8 +331,17 @@ impl CenterSection {
                         .map(|s| s.trim().to_string())
                         .filter(|s| !s.is_empty())
                         .collect();
+                } else if line.starts_with("NoDisplay=") {
+                    let val = line["NoDisplay=".len()..].trim().to_lowercase();
+                    if val == "true" {
+                        no_display = true;
+                    }
                 }
             }
+        }
+
+        if no_display {
+            return None;
         }
 
         if let (Some(name), Some(icon), Some(exec)) = (name, icon, exec) {

@@ -729,88 +729,41 @@ passwordentry.qs-pass-input:focus, entry.qs-pass-input:focus {
     background-color: rgba(255, 255, 255, 0.18);
 }
 
-/* === APP DRAWER / LAUNCHER POPUP PANEL (ChromeOS Glassmorphism) === */
+/* === APP DRAWER / LAUNCHER POPUP PANEL (macOS Launchpad Glassmorphism) === */
 window.launcher-popup-window {
     background-color: transparent;
-    border-radius: 24px;
 }
 
 box.launcher-popup-container {
-    background-color: rgba(18, 19, 26, 0.76);
-    border-radius: 24px;
-    padding: 32px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    background-color: rgba(15, 17, 26, 0.65);
+    padding: 64px 80px 48px 80px; /* Spacious margins for Launchpad layout */
     box-shadow: none;
     font-family: "Outfit", "Roboto", sans-serif;
-    color: #e3e2e6;
-}
-
-box.launcher-header {
-    margin-bottom: 12px;
-    min-height: 40px;
-}
-
-label.launcher-header-icon {
-    font-size: 24px;
-    color: #a8c7fa;
-}
-
-label.launcher-title {
-    font-size: 22px;
-    font-weight: 700;
     color: #ffffff;
 }
 
-button.launcher-options-btn {
-    background-image: none;
+box.launcher-search-box-wrapper {
+    margin-bottom: 24px;
+}
+
+searchentry.launcher-search-pill, entry.launcher-search-pill {
     background-color: rgba(255, 255, 255, 0.08);
-    border-radius: 50%;
-    min-width: 38px;
-    min-height: 38px;
-    padding: 0;
-    color: #e3e2e6;
-    border: none;
-    box-shadow: none;
-    transition: background-color 150ms ease;
-}
-
-button.launcher-options-btn:hover {
-    background-image: none;
-    background-color: rgba(255, 255, 255, 0.16);
-}
-
-scrolledwindow.launcher-categories-scroll {
-    min-height: 54px;
-    margin-bottom: 12px;
-}
-
-box.launcher-categories-box {
-    padding: 4px 0;
-}
-
-button.launcher-cat-btn {
-    background-image: none;
-    background-color: rgba(255, 255, 255, 0.06);
-    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 24px;
+    color: #ffffff;
     padding: 8px 18px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #e3e2e6;
-    border: none;
-    box-shadow: none;
+    font-size: 15px;
     transition: all 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-button.launcher-cat-btn:hover {
-    background-image: none;
-    background-color: rgba(255, 255, 255, 0.14);
+searchentry.launcher-search-pill text, entry.launcher-search-pill text {
+    color: #ffffff;
 }
 
-button.launcher-cat-btn.active {
-    background-image: none;
-    background-color: #a8c7fa;
-    color: #003062;
-    font-weight: 700;
+searchentry.launcher-search-pill:focus, entry.launcher-search-pill:focus {
+    border-color: #a8c7fa;
+    background-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 0 0 2px rgba(168, 199, 250, 0.2);
 }
 
 scrolledwindow.launcher-grid-scroll {
@@ -827,10 +780,10 @@ button.launcher-app-item {
     background: none;
     border: none;
     box-shadow: none;
-    border-radius: 20px;
+    border-radius: 24px;
     padding: 16px 8px;
-    color: #e3e2e6;
-    transition: all 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    color: #ffffff;
+    transition: all 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 button.launcher-app-item:hover {
@@ -840,20 +793,22 @@ button.launcher-app-item:hover {
 
 button.launcher-app-item box.icon-bubble {
     background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
-    transition: all 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    border-radius: 20px;
+    transition: all 250ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 button.launcher-app-item:hover box.icon-bubble {
-    transform: scale(1.08);
+    transform: scale(1.10);
     background-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
 label.launcher-app-name {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
-    color: #e3e2e6;
-    margin-top: 6px;
+    color: rgba(255, 255, 255, 0.9);
+    margin-top: 8px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 
