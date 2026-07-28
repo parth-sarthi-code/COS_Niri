@@ -29,7 +29,7 @@ impl LauncherPopup {
 
         // Do not yield to compositor exclusive zones (cover the bar)
         window.set_exclusive_zone(-1);
-        window.set_margin(Edge::Bottom, -48);
+        window.set_margin(Edge::Bottom, -80);
 
         window.add_css_class("launcher-popup-window");
 
