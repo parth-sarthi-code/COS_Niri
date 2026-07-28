@@ -5,7 +5,7 @@ A premium, glassmorphic status bar and desktop shell components designed specifi
 ---
 
 ## Compatibility Note (Fedora Only)
-This shell currently officially supports **Fedora** (tested on Fedora 40/41 Workstation). 
+This shell currently officially supports **Fedora** (tested on Fedora 44 Workstation). 
 *   **D-Bus APIs**: Backend features like Wi-Fi SSID network scanning rely on specific variant signatures returned by Fedora's `org.freedesktop.NetworkManager` implementation. Some features may crash or fail to work on other distributions (like Arch or Ubuntu) due to variations in D-Bus signature schemas.
 
 ---
