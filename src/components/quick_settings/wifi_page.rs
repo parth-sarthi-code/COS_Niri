@@ -1,6 +1,6 @@
 use crate::services::network::{NetworkService, WifiNetwork};
 use gtk4::prelude::*;
-use gtk4::{Box as GtkBox, Button, Label, Orientation, PasswordEntry, ScrolledWindow, Switch};
+use gtk4::{Box as GtkBox, Button, GestureClick, Label, Orientation, PasswordEntry, ScrolledWindow, Switch};
 use std::sync::mpsc;
 use std::thread;
 
@@ -108,12 +108,10 @@ impl WifiPage {
                 } else {
                     for net in networks {
                         let item_container = GtkBox::new(Orientation::Vertical, 4);
-                        item_container.add_css_class("qs-wifi-item-container");
-
-                        let item_btn = Button::new();
-                        item_btn.add_css_class("qs-list-item");
+                        item_container.add_css_class("qs-wifi-item-card");
 
                         let row = GtkBox::new(Orientation::Horizontal, 8);
+                        row.add_css_class("qs-list-item-row");
                         row.set_valign(gtk4::Align::Center);
 
                         // Icon code based on signal
@@ -141,7 +139,7 @@ impl WifiPage {
 
                             // Disconnect button
                             let disc_btn = Button::with_label("Disconnect");
-                            disc_btn.add_css_class("qs-today-btn");
+                            disc_btn.add_css_class("qs-disc-btn");
                             disc_btn.set_valign(gtk4::Align::Center);
 
                             let ssid_disc = net.ssid.clone();
@@ -157,24 +155,22 @@ impl WifiPage {
                             row.append(&disc_btn);
                         }
 
-                        item_btn.set_child(Some(&row));
-                        item_container.append(&item_btn);
+                        item_container.append(&row);
 
                         // If not connected, add expandable password prompt
                         if !net.is_connected {
                             let pass_box = GtkBox::new(Orientation::Horizontal, 6);
                             pass_box.add_css_class("qs-pass-box");
                             pass_box.set_visible(false);
-                            pass_box.set_margin_start(12);
-                            pass_box.set_margin_end(12);
 
                             let pass_entry = PasswordEntry::new();
+                            pass_entry.add_css_class("qs-pass-input");
                             pass_entry.set_placeholder_text(Some("Password"));
                             pass_entry.set_hexpand(true);
                             pass_box.append(&pass_entry);
 
                             let connect_btn = Button::with_label("Connect");
-                            connect_btn.add_css_class("qs-today-btn");
+                            connect_btn.add_css_class("qs-disc-btn");
 
                             let ssid_conn = net.ssid.clone();
                             let lb_ref2 = list_box_c.clone();
@@ -198,12 +194,14 @@ impl WifiPage {
                             pass_box.append(&connect_btn);
                             item_container.append(&pass_box);
 
-                            // Toggle password box on item click
+                            // Toggle password box when clicking the row
+                            let gesture = GestureClick::new();
                             let p_box_toggle = pass_box.clone();
-                            item_btn.connect_clicked(move |_| {
+                            gesture.connect_pressed(move |_, _, _, _| {
                                 let is_vis = p_box_toggle.is_visible();
                                 p_box_toggle.set_visible(!is_vis);
                             });
+                            row.add_controller(gesture);
                         }
 
                         list_box_c.append(&item_container);

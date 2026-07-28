@@ -278,17 +278,20 @@ impl NetworkService {
     pub fn disconnect_network(ssid: Option<&str>) {
         let s = ssid.map(|s| s.to_string());
         crate::services::worker::TaskWorker::dispatch(move || {
-            if let Some(name) = s {
+            if let Some(ref name) = s {
                 let _ = Command::new("nmcli")
                     .env("LC_ALL", "C")
-                    .args(["connection", "down", "id", &name])
-                    .output();
-            } else {
-                let _ = Command::new("nmcli")
-                    .env("LC_ALL", "C")
-                    .args(["device", "disconnect", "wifi"])
+                    .args(["connection", "down", "id", name])
                     .output();
             }
+            let _ = Command::new("nmcli")
+                .env("LC_ALL", "C")
+                .args(["device", "disconnect", "wlp0s20f3"])
+                .output();
+            let _ = Command::new("nmcli")
+                .env("LC_ALL", "C")
+                .args(["device", "disconnect", "wlan0"])
+                .output();
         });
     }
 

@@ -654,3 +654,60 @@ button.cal-day-cell.cal-other-month {
     opacity: 0.25;
 }
 
+/* Wi-Fi Subpage Item Styling & Entry Input */
+box.qs-wifi-item-card {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 6px 10px;
+    margin: 2px 0;
+}
+
+box.qs-list-item-row {
+    padding: 6px 8px;
+    border-radius: 10px;
+}
+
+box.qs-list-item-row:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+button.qs-disc-btn {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #ffffff;
+    border: none;
+    box-shadow: none;
+}
+
+button.qs-disc-btn:hover {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.22);
+}
+
+box.qs-pass-box {
+    margin-top: 6px;
+    padding: 4px;
+}
+
+passwordentry.qs-pass-input, entry.qs-pass-input {
+    background-color: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 12px;
+    color: #ffffff;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+passwordentry.qs-pass-input text, entry.qs-pass-input text {
+    color: #ffffff;
+}
+
+passwordentry.qs-pass-input:focus, entry.qs-pass-input:focus {
+    border-color: #a8c7fa;
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
