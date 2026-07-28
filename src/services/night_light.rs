@@ -3,17 +3,26 @@ use std::process::Command;
 pub struct NightLightService;
 
 impl NightLightService {
-    /// Check if night light (gammastep / wlsunset / hyprshade) is currently running
+    /// Check if night light (gammastep / wlsunset / hyprshade) is currently running (0 process forks)
     pub fn is_enabled() -> bool {
         let targets = ["gammastep", "wlsunset", "hyprshade"];
-        for proc in &targets {
-            if let Ok(output) = Command::new("pgrep")
-                .env("LC_ALL", "C")
-                .args(["-x", proc])
-                .output()
-            {
-                if output.status.success() {
-                    return true;
+
+        if let Ok(entries) = std::fs::read_dir("/proc") {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                // Check if directory name is numeric PID
+                if path.is_dir() {
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name.chars().all(|c| c.is_ascii_digit()) {
+                            let comm_path = path.join("comm");
+                            if let Ok(comm) = std::fs::read_to_string(&comm_path) {
+                                let proc_name = comm.trim();
+                                if targets.contains(&proc_name) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
