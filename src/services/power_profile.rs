@@ -17,11 +17,19 @@ impl PowerProfile {
         }
     }
 
+    pub fn gnome_icon_name(&self) -> &'static str {
+        match self {
+            Self::Performance => "power-profile-performance-symbolic",
+            Self::Balanced => "power-profile-balanced-symbolic",
+            Self::PowerSaver => "power-profile-power-saver-symbolic",
+        }
+    }
+
     pub fn icon_code(&self) -> &'static str {
         match self {
-            Self::Performance => "\u{ebd2}", // electric_bolt
-            Self::Balanced => "\u{e838}",    // balance settings icon
-            Self::PowerSaver => "\u{e1a5}",  // battery icon
+            Self::Performance => "\u{e80e}", // speed gauge (GNOME style)
+            Self::Balanced => "\u{e429}",    // dial / sliders (GNOME style)
+            Self::PowerSaver => "\u{e80d}",  // leaf (GNOME style)
         }
     }
 
