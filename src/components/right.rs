@@ -145,8 +145,18 @@ impl RightSection {
         if !NetworkService::is_wifi_enabled() {
             return "\u{e648}"; // wifi_off
         }
-        if NetworkService::get_active_ssid().is_some() || NetworkService::get_active_signal().is_some() {
-            "\u{e1d8}" // network_wifi (codepoint: e1d8)
+        if let Some(signal) = NetworkService::get_active_signal() {
+            if signal >= 75 {
+                "\u{e1d8}" // network_wifi (full / e1d8)
+            } else if signal >= 50 {
+                "\u{ebe7}" // network_wifi_3_bar
+            } else if signal >= 25 {
+                "\u{ebe6}" // network_wifi_2_bar
+            } else {
+                "\u{ebe4}" // network_wifi_1_bar (ebe4)
+            }
+        } else if NetworkService::get_active_ssid().is_some() {
+            "\u{e1d8}" // network_wifi
         } else {
             "\u{e648}" // disconnected
         }
