@@ -214,7 +214,7 @@ impl NetworkService {
 
     /// Find Wi-Fi device object path (DeviceType == 2)
     fn get_wifi_device_path(conn: &gio::DBusConnection) -> Option<String> {
-        let devices_val = conn
+        let res = conn
             .call_sync(
                 Some("org.freedesktop.NetworkManager"),
                 "/org/freedesktop/NetworkManager",
@@ -226,10 +226,16 @@ impl NetworkService {
                 -1,
                 gio::Cancellable::NONE,
             )
-            .ok()?
-            .child_value(0);
+            .ok()?;
 
-        let dev_paths: Vec<String> = devices_val.get::<Vec<String>>()?;
+        let var = res.child_value(0);
+        let mut dev_paths = Vec::new();
+        for i in 0..var.n_children() {
+            let elem = var.child_value(i);
+            if let Some(s) = elem.str() {
+                dev_paths.push(s.to_string());
+            }
+        }
 
         for path in dev_paths {
             let dev_type = conn
@@ -282,12 +288,13 @@ impl NetworkService {
 
         if let Ok(conn) = gio::bus_get_sync(gio::BusType::System, gio::Cancellable::NONE) {
             if let Some(wifi_dev) = Self::get_wifi_device_path(&conn) {
+                // Call GetAllAccessPoints to fetch all cached and live access points
                 let ap_paths_val = conn
                     .call_sync(
                         Some("org.freedesktop.NetworkManager"),
                         &wifi_dev,
                         "org.freedesktop.NetworkManager.Device.Wireless",
-                        "GetAccessPoints",
+                        "GetAllAccessPoints",
                         None,
                         None,
                         gio::DBusCallFlags::NONE,
@@ -297,68 +304,82 @@ impl NetworkService {
                     .ok()
                     .map(|res| res.child_value(0));
 
-                if let Some(ap_paths) = ap_paths_val.and_then(|v| v.get::<Vec<String>>()) {
-                    let active_ssid = state.ssid.unwrap_or_default();
-
-                    for ap_path in ap_paths {
-                        // Read SSID byte array
-                        let ssid_val = conn
-                            .call_sync(
-                                Some("org.freedesktop.NetworkManager"),
-                                &ap_path,
-                                "org.freedesktop.DBus.Properties",
-                                "Get",
-                                Some(&(
-                                    "org.freedesktop.NetworkManager.AccessPoint",
-                                    "Ssid",
-                                ).to_variant()),
-                                None,
-                                gio::DBusCallFlags::NONE,
-                                -1,
-                                gio::Cancellable::NONE,
-                            )
-                            .ok()
-                            .and_then(|res| res.child_value(0).get::<glib::Variant>())
-                            .and_then(|v| v.get::<Vec<u8>>());
-
-                        let ssid_str = ssid_val
-                            .and_then(|bytes| String::from_utf8(bytes).ok())
-                            .unwrap_or_default();
-
-                        if ssid_str.is_empty() {
-                            continue;
+                let mut ap_paths = Vec::new();
+                if let Some(ap_var) = ap_paths_val {
+                    for i in 0..ap_var.n_children() {
+                        let elem = ap_var.child_value(i);
+                        if let Some(s) = elem.str() {
+                            ap_paths.push(s.to_string());
                         }
+                    }
+                }
 
-                        // Read Strength u8
-                        let strength = conn
-                            .call_sync(
-                                Some("org.freedesktop.NetworkManager"),
-                                &ap_path,
-                                "org.freedesktop.DBus.Properties",
-                                "Get",
-                                Some(&(
-                                    "org.freedesktop.NetworkManager.AccessPoint",
-                                    "Strength",
-                                ).to_variant()),
-                                None,
-                                gio::DBusCallFlags::NONE,
-                                -1,
-                                gio::Cancellable::NONE,
-                            )
-                            .ok()
-                            .and_then(|res| res.child_value(0).get::<glib::Variant>())
-                            .and_then(|v| v.get::<u8>())
-                            .unwrap_or(0) as u32;
+                let active_ssid = state.ssid.unwrap_or_default();
 
-                        let is_connected = !active_ssid.is_empty() && ssid_str == active_ssid;
+                for ap_path in ap_paths {
+                    // Read SSID byte array (`ay`)
+                    let ssid_var = conn
+                        .call_sync(
+                            Some("org.freedesktop.NetworkManager"),
+                            &ap_path,
+                            "org.freedesktop.DBus.Properties",
+                            "Get",
+                            Some(&(
+                                "org.freedesktop.NetworkManager.AccessPoint",
+                                "Ssid",
+                            ).to_variant()),
+                            None,
+                            gio::DBusCallFlags::NONE,
+                            -1,
+                            gio::Cancellable::NONE,
+                        )
+                        .ok()
+                        .and_then(|res| res.child_value(0).get::<glib::Variant>());
 
-                        if !list.iter().any(|n: &WifiNetwork| n.ssid == ssid_str) {
-                            list.push(WifiNetwork {
-                                ssid: ssid_str,
-                                signal: strength,
-                                is_connected,
-                            });
+                    let mut ssid_bytes = Vec::new();
+                    if let Some(sv) = ssid_var {
+                        let inner_v = sv.child_value(0);
+                        for k in 0..inner_v.n_children() {
+                            if let Some(b) = inner_v.child_value(k).get::<u8>() {
+                                ssid_bytes.push(b);
+                            }
                         }
+                    }
+
+                    let ssid_str = String::from_utf8(ssid_bytes).unwrap_or_default();
+                    if ssid_str.is_empty() {
+                        continue;
+                    }
+
+                    // Read Strength u8
+                    let strength = conn
+                        .call_sync(
+                            Some("org.freedesktop.NetworkManager"),
+                            &ap_path,
+                            "org.freedesktop.DBus.Properties",
+                            "Get",
+                            Some(&(
+                                "org.freedesktop.NetworkManager.AccessPoint",
+                                "Strength",
+                            ).to_variant()),
+                            None,
+                            gio::DBusCallFlags::NONE,
+                            -1,
+                            gio::Cancellable::NONE,
+                        )
+                        .ok()
+                        .and_then(|res| res.child_value(0).get::<glib::Variant>())
+                        .and_then(|v| v.get::<u8>())
+                        .unwrap_or(0) as u32;
+
+                    let is_connected = !active_ssid.is_empty() && ssid_str == active_ssid;
+
+                    if !list.iter().any(|n: &WifiNetwork| n.ssid == ssid_str) {
+                        list.push(WifiNetwork {
+                            ssid: ssid_str,
+                            signal: strength,
+                            is_connected,
+                        });
                     }
                 }
             }
