@@ -129,6 +129,7 @@ impl ThemeService {
              @define-color primary-container rgba({}, {}, {}, 0.14);\n\
              @define-color on-primary-container rgb({}, {}, {});\n\
              @define-color surface rgba({}, {}, {}, 0.72);\n\
+             @define-color surface-opaque rgba({}, {}, {}, 0.90);\n\
              @define-color surface-variant rgba(255, 255, 255, 0.07);\n\
              @define-color outline rgba(255, 255, 255, 0.10);\n\
              @define-color text-primary #ffffff;\n\
@@ -138,6 +139,7 @@ impl ThemeService {
             on_primary.0, on_primary.1, on_primary.2,
             primary_container.0, primary_container.1, primary_container.2,
             on_primary_container.0, on_primary_container.1, on_primary_container.2,
+            surface.0, surface.1, surface.2,
             surface.0, surface.1, surface.2,
         );
         
@@ -173,6 +175,7 @@ impl ThemeService {
                    @define-color primary-container rgba(180, 197, 255, 0.14);\n\
                    @define-color on-primary-container #d0bcff;\n\
                    @define-color surface rgba(18, 19, 26, 0.72);\n\
+                   @define-color surface-opaque rgba(18, 19, 26, 0.90);\n\
                    @define-color surface-variant rgba(255, 255, 255, 0.07);\n\
                    @define-color outline rgba(255, 255, 255, 0.10);\n\
                    @define-color text-primary #ffffff;\n\

@@ -209,7 +209,7 @@ layer-rule {
     }
 }
 
-// ChromeOS App Launcher Popup — blur + shadow for glassmorphism effect
+// ChromeOS App Launcher Popup — shadow off, blur off for fast rendering
 layer-rule {
     match namespace="cos-launcher"
     
@@ -218,8 +218,6 @@ layer-rule {
         off
     }
     background-effect {
-        blur true
-        noise 0.03
-        saturation 1.6
+        blur false
     }
 }
