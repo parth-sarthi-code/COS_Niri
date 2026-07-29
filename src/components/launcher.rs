@@ -95,21 +95,14 @@ impl LauncherPopup {
             search_entry,
         };
 
-        popup.refresh_apps();
+        popup.build_app_grid();
         popup.setup_search_handlers();
 
         popup
     }
 
-    fn refresh_apps(&self) {
-        // Clear existing children
-        while let Some(child) = self.flowbox.first_child() {
-            self.flowbox.remove(&child);
-        }
-
-        let search_text = self.search_entry.text().to_string().to_lowercase();
+    fn build_app_grid(&self) {
         let desktop_entries = CenterSection::scan_desktop_entries();
-
         let mut filtered_entries = Vec::new();
 
         for entry in desktop_entries.values() {
@@ -121,15 +114,6 @@ impl LauncherPopup {
 
             if is_setting_panel {
                 continue;
-            }
-
-            // 2. Filter by search input
-            if !search_text.is_empty() {
-                let name_matches = entry.name.to_lowercase().contains(&search_text);
-                let exec_matches = entry.exec.to_lowercase().contains(&search_text);
-                if !name_matches && !exec_matches {
-                    continue;
-                }
             }
 
             filtered_entries.push(entry.clone());
@@ -186,14 +170,32 @@ impl LauncherPopup {
                 s_win.set_visible(false);
             });
 
-            self.flowbox.append(&item_btn);
+            // Wrap in FlowBoxChild and store exec command in its widget name
+            let flow_child = gtk4::FlowBoxChild::new();
+            flow_child.set_child(Some(&item_btn));
+            flow_child.set_widget_name(&entry.exec);
+            self.flowbox.append(&flow_child);
         }
     }
 
     fn setup_search_handlers(&self) {
-        let s_ref = self.clone_ref();
+        let flowbox_c = self.flowbox.clone();
         self.search_entry.connect_search_changed(move |_| {
-            s_ref.refresh_apps();
+            flowbox_c.invalidate_filter();
+        });
+
+        // Register highly-efficient C-based GTK filter func
+        let search_entry_f = self.search_entry.clone();
+        self.flowbox.set_filter_func(move |child| {
+            let search_text = search_entry_f.text().to_string().to_lowercase();
+            if search_text.is_empty() {
+                return true;
+            }
+
+            let app_name = get_child_text(child);
+            let exec_cmd = child.widget_name().to_string().to_lowercase();
+
+            app_name.contains(&search_text) || exec_cmd.contains(&search_text)
         });
 
         // Set keyboard mode to OnDemand ONLY when the search input is focused/clicked
@@ -221,8 +223,26 @@ impl LauncherPopup {
             // Keep KeyboardMode::None when launched until search pill is clicked
             self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
             self.search_entry.set_text("");
-            self.refresh_apps();
             crate::services::animation::slide_up_open(&self.window, 56);
         }
     }
+}
+
+// Traverse the GTK widget tree of a FlowBoxChild to get the text of its app name Label
+fn get_child_text(child: &gtk4::FlowBoxChild) -> String {
+    if let Some(btn) = child.child().and_then(|w| w.downcast::<Button>().ok()) {
+        if let Some(bbox) = btn.child().and_then(|w| w.downcast::<GtkBox>().ok()) {
+            let mut next = bbox.first_child();
+            while let Some(w) = next {
+                let sibling = w.next_sibling();
+                if let Some(lbl) = w.downcast::<Label>().ok() {
+                    if lbl.has_css_class("launcher-app-name") {
+                        return lbl.text().to_string().to_lowercase();
+                    }
+                }
+                next = sibling;
+            }
+        }
+    }
+    String::new()
 }
