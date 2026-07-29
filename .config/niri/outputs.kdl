@@ -1,0 +1,10 @@
+// You can configure outputs by their name, which you can find
+// by running `niri msg outputs` while inside a niri instance.
+// The built-in laptop monitor is usually called "eDP-1".
+
+/-output "eDP-1" {
+    mode "1920x1080@120.030"
+    scale 2
+    transform "normal"
+    position x=1280 y=0
+}

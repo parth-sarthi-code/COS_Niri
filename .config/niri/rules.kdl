@@ -1,0 +1,225 @@
+// Set rounded corners and clip window contents for all windows
+window-rule {
+    geometry-corner-radius 12
+    clip-to-geometry true
+}
+
+// Show shadow ONLY with floating windows (prevents tiling clipping issues)
+window-rule {
+    match is-floating=true
+    shadow {
+        on
+    }
+}
+
+// Work around WezTerm's initial configure bug
+window-rule {
+    match app-id=r"^org\.wezfurlong\.wezterm$"
+    default-column-width {}
+}
+
+// Enable blur for Alacritty
+window-rule {
+    match app-id=r"^Alacritty$"
+    background-effect {
+        blur true
+    }
+}
+
+// Open the Firefox picture-in-picture player as floating by default
+window-rule {
+    match app-id=r"firefox$" title="^Picture-in-Picture$"
+    open-floating true
+}
+
+// =============================================================================
+//  UTILITY & SYSTEM FLOATING WINDOWS
+// =============================================================================
+
+// Standard system dialogs, authentication agents, and configuration tools
+window-rule {
+    match app-id="GParted"
+    match app-id="Pinentry-gtk"
+    match app-id="blueman-manager"
+    match app-id="localsend_app"
+    match app-id="nwg-look"
+    match app-id="org.gnome.FileRoller"
+    match app-id="polkit-gnome-authentication-agent-1"
+    match app-id="qt6ct"
+    match app-id="satty"
+    match app-id="xdg-desktop-portal-gnome"
+    match app-id="xdg-desktop-portal-gtk"
+    match app-id="yad"
+    match app-id="zenity"
+    match title="Vivaldi Settings: General - Vivaldi"
+    open-floating true
+}
+
+// Center-top floating utilities (package managers, system tools)
+window-rule {
+    match app-id="pacseek"
+    match app-id="pop-upgrade"
+    open-floating true
+    default-column-width { proportion 0.50; }
+    default-window-height { proportion 0.60; }
+    default-floating-position x=10 y=10 relative-to="top"
+}
+
+// System monitors, custom terminals, and wallpaper setters (Large Center Floating)
+window-rule {
+    match app-id="io.missioncenter.MissionCenter"
+    match app-id="fzystemd"
+    match app-id=r"htop|btop" title="poptop"
+    match app-id="swayimg-setwall"
+    match app-id="noteterm"
+    open-floating true
+    default-column-width { proportion 0.80; }
+    default-window-height { proportion 0.80; }
+}
+
+// Image viewer rules
+window-rule {
+    match app-id="swayimg"
+    open-floating true
+    default-column-width { proportion 0.45; }
+    default-window-height { proportion 0.45; }
+    default-floating-position x=16 y=16 relative-to="top-right"
+    exclude app-id="swayimg-setwall"
+}
+
+// --- Top-Right Floating Utilities (Auto-positioning rules) ---
+
+// Bluetui, Pavucontrol, Impala, Network connection editor
+window-rule {
+    match app-id="bluetui"
+    match app-id="impala"
+    match app-id="nm-connection-editor"
+    match app-id="pavucontrol"
+    match app-id="org.pulseaudio.pavucontrol"
+    open-floating true
+    default-floating-position x=10 y=10 relative-to="top-right"
+}
+
+// Calculator (galculator)
+window-rule {
+    match app-id="galculator"
+    open-floating true
+    default-column-width { fixed 316; }
+    default-window-height { fixed 352; }
+    default-floating-position x=10 y=10 relative-to="top-right"
+}
+
+// Proton-authenticator
+window-rule {
+    match app-id="proton-authenticator"
+    open-floating true
+    default-column-width { fixed 420; }
+    default-window-height { fixed 685; }
+    default-floating-position x=10 y=10 relative-to="top-right"
+}
+
+// =============================================================================
+// ENVIRONMENT & SHELL LAYER RULES
+// =============================================================================
+
+layer-rule {
+    geometry-corner-radius 12
+    match namespace="wlr_which_key"
+    shadow {
+      on
+    }
+    background-effect {
+        blur true
+    }
+}
+
+layer-rule {
+    geometry-corner-radius 12
+    match namespace="launcher"
+    shadow {
+      on
+    }
+    background-effect {
+        blur true
+    }
+}
+
+// Show blurred wallpaper behind the Niri overview interface
+layer-rule {
+    match namespace="overview"
+    place-within-backdrop true
+}
+
+// Open browsers, VS Code, and Antigravity maximized by default
+window-rule {
+    match app-id=r"(?i)firefox|zen|vivaldi|chrome|chromium|code|antigravity"
+    open-maximized true
+}
+
+// Allow floating windows to shrink properly to respect the sidebar dimensions
+window-rule {
+    match is-floating=true
+    min-width 100
+    min-height 100
+}
+
+
+
+
+// ChromeOS Bar — blur + shadow for glass shelf effect
+layer-rule {
+    match namespace="cos-bar"
+    shadow {
+        on
+    }
+    background-effect {
+        blur true
+        noise 0.03
+        saturation 1.6
+    }
+}
+
+// ChromeOS Quick Settings Popup — blur + shadow for glassmorphism effect
+layer-rule {
+    match namespace="cos-quick-settings"
+    geometry-corner-radius 24
+    shadow {
+        on
+    }
+    background-effect {
+        blur true
+        xray false
+        noise 0.03
+        saturation 1.6
+    }
+}
+
+// ChromeOS Calendar Popup — blur + shadow for glassmorphism effect
+layer-rule {
+    match namespace="cos-calendar"
+    geometry-corner-radius 24
+    shadow {
+        on
+    }
+    background-effect {
+        blur true
+        xray false
+        noise 0.03
+        saturation 1.6
+    }
+}
+
+// ChromeOS App Launcher Popup — blur + shadow for glassmorphism effect
+layer-rule {
+    match namespace="cos-launcher"
+    
+    geometry-corner-radius 0
+    shadow {
+        off
+    }
+    background-effect {
+        blur true
+        noise 0.03
+        saturation 1.6
+    }
+}

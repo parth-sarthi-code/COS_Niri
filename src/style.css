@@ -156,8 +156,8 @@ button.ws-pill:hover {
 }
 
 button.ws-pill.active {
-    background-color: #b4c5ff;
-    color: #1a1b38;
+    background-color: @primary;
+    color: @on-primary;
     font-weight: 700;
 }
 
@@ -187,13 +187,13 @@ button.dock-item:hover box.icon-bubble {
 }
 
 button.dock-item.focused box.icon-bubble {
-    background-color: rgba(180, 197, 255, 0.22);
-    border: 1px solid rgba(180, 197, 255, 0.35);
+    background-color: @primary-container;
+    border: 1px solid @primary;
 }
 
 /* Dot Indicators */
 box.dot-active {
-    background-color: #b4c5ff;
+    background-color: @primary;
     border-radius: 3px;
     min-width: 14px;
     min-height: 3px;
@@ -402,12 +402,12 @@ box.qs-popup-container button.qs-tile-bubble:hover {
 
 /* Active Material You Pastel Blue Tile */
 box.qs-popup-container button.qs-tile-bubble.active {
-    background-color: #b4c5ff;
-    color: #1a1b38;
+    background-color: @primary;
+    color: @on-primary;
 }
 
 box.qs-popup-container button.qs-tile-bubble.active label {
-    color: #1a1b38;
+    color: @on-primary;
 }
 
 label.qs-tile-title {
@@ -467,7 +467,7 @@ scale.qs-slider trough {
 }
 
 scale.qs-slider highlight {
-    background-color: #b4c5ff;
+    background-color: @primary;
     border-radius: 3px;
     min-height: 6px;
     border: none;
@@ -546,8 +546,8 @@ box.qs-wifi-item-card:hover {
 }
 
 box.qs-wifi-item-card.connected {
-    background-color: rgba(180, 197, 255, 0.14);
-    border: 1px solid rgba(180, 197, 255, 0.32);
+    background-color: @primary-container;
+    border: 1px solid @primary;
 }
 
 box.qs-popup-container button.qs-list-item-btn {
@@ -602,8 +602,8 @@ box.qs-popup-container button.qs-disc-btn:hover {
 }
 
 box.qs-popup-container button.qs-conn-btn {
-    background-color: #b4c5ff;
-    color: #1a1b38;
+    background-color: @primary;
+    color: @on-primary;
     border-radius: 12px;
     padding: 5px 14px;
     font-size: 12px;
@@ -613,7 +613,8 @@ box.qs-popup-container button.qs-conn-btn {
 }
 
 box.qs-popup-container button.qs-conn-btn:hover {
-    background-color: #d0bcff;
+    background-color: @primary;
+    opacity: 0.88;
 }
 
 box.qs-pass-box {
@@ -631,7 +632,7 @@ entry.qs-pass-input {
 }
 
 entry.qs-pass-input:focus-within {
-    border-color: #b4c5ff;
+    border-color: @primary;
 }
 
 label.qs-subpage-empty {
@@ -647,30 +648,30 @@ window.cal-popup-window {
 }
 
 box.cal-popup-container {
-    background-color: rgba(18, 19, 26, 0.72);
+    background-color: @surface;
     border-radius: 24px;
     padding: 20px 24px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid @outline;
     box-shadow: none;
     font-family: "Roboto", sans-serif;
-    color: #e3e2e6;
+    color: @text-primary;
 }
 
 /* Header */
 label.cal-month-title {
     font-size: 18px;
     font-weight: 600;
-    color: #ffffff;
+    color: @text-primary;
 }
 
 button.cal-today-btn {
     background-image: none;
-    background-color: rgba(255, 255, 255, 0.10);
+    background-color: @surface-variant;
     border-radius: 14px;
     padding: 6px 14px;
     font-size: 13px;
     font-weight: 500;
-    color: #ffffff;
+    color: @text-primary;
     border: none;
     box-shadow: none;
 }
@@ -687,13 +688,13 @@ button.cal-nav-btn {
     min-width: 36px;
     min-height: 36px;
     padding: 0;
-    color: #ffffff;
+    color: @text-primary;
     border: none;
     box-shadow: none;
 }
 
 button.cal-nav-btn label {
-    color: #ffffff;
+    color: @text-primary;
 }
 
 button.cal-nav-btn:hover {
@@ -709,7 +710,7 @@ grid.cal-dow-grid {
 label.cal-dow-label {
     font-size: 13px;
     font-weight: 600;
-    color: #a0a5b5;
+    color: @text-secondary;
 }
 
 /* Day Cells */
@@ -723,7 +724,7 @@ button.cal-day-cell {
     padding: 0;
     font-size: 14px;
     font-weight: 500;
-    color: #e3e2e6;
+    color: @text-primary;
     box-shadow: none;
     transition: background-color 150ms ease;
 }
@@ -736,8 +737,8 @@ button.cal-day-cell.cal-active-month:hover {
 /* Today Active Bubble */
 button.cal-day-cell.cal-today {
     background-image: none;
-    background-color: #a8c7fa;
-    color: #003062;
+    background-color: @primary;
+    color: @on-primary;
     font-weight: 700;
     border-radius: 50%;
 }
@@ -914,17 +915,17 @@ switch:hover {
 }
 
 switch:checked {
-    background-color: #b4c5ff;
-    border-color: #b4c5ff;
+    background-color: @primary;
+    border-color: @primary;
 }
 
 switch:checked:hover {
-    background-color: #c0d0ff;
-    border-color: #c0d0ff;
+    background-color: @primary;
+    opacity: 0.95;
 }
 
 switch slider {
-    background-color: #e3e2e6;
+    background-color: @text-primary;
     border-radius: 50%;
     min-width: 16px;
     min-height: 16px;
@@ -935,7 +936,7 @@ switch slider {
 }
 
 switch:checked slider {
-    background-color: #1a1b38;
+    background-color: @on-primary;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 

@@ -10,7 +10,22 @@ use gtk4::{style_context_add_provider_for_display, Application, CssProvider};
 
 const STYLE_CSS: &str = include_str!("style.css");
 
+thread_local! {
+    static CSS_PROVIDER: CssProvider = CssProvider::new();
+}
+
 fn main() {
+    // Generate/initialize Material You theme colors from wallpaper
+    services::theme::ThemeService::initialize();
+
+    // Set up signal handler (SIGUSR1 - 10) for on-demand theme updates
+    glib::unix_signal_add_local(10, move || {
+        eprintln!("[theme] SIGUSR1 received, regenerating theme colors...");
+        services::theme::ThemeService::initialize();
+        load_css();
+        glib::ControlFlow::Continue
+    });
+
     // Fix #2: Ensure Material Symbols + Roboto fonts are installed before GTK init
     ensure_fonts_installed();
 
@@ -36,16 +51,46 @@ fn main() {
 }
 
 fn load_css() {
-    let provider = CssProvider::new();
-    provider.load_from_string(STYLE_CSS);
+    let mut css_content = String::new();
 
-    if let Some(display) = Display::default() {
-        style_context_add_provider_for_display(
-            &display,
-            &provider,
-            gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    // Prepend generated wallpaper colors dynamically if present, otherwise fallback
+    let colors_path = dirs::home_dir()
+        .unwrap_or_default()
+        .join(".config/cos-niri/colors.css");
+
+    if let Ok(colors) = std::fs::read_to_string(colors_path) {
+        css_content.push_str(&colors);
+    } else {
+        css_content.push_str(
+            "@define-color primary #b4c5ff;\n\
+             @define-color on-primary #1a1b38;\n\
+             @define-color primary-container rgba(180, 197, 255, 0.14);\n\
+             @define-color on-primary-container #d0bcff;\n\
+             @define-color surface rgba(18, 19, 26, 0.72);\n\
+             @define-color surface-variant rgba(255, 255, 255, 0.07);\n\
+             @define-color outline rgba(255, 255, 255, 0.10);\n\
+             @define-color text-primary #ffffff;\n\
+             @define-color text-secondary #c4c6d0;\n\
+             @define-color text-muted #938f99;\n"
         );
     }
+
+    css_content.push_str(STYLE_CSS);
+
+    CSS_PROVIDER.with(|provider| {
+        provider.load_from_string(&css_content);
+
+        if let Some(display) = Display::default() {
+            static ADDED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+            if !ADDED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                style_context_add_provider_for_display(
+                    &display,
+                    provider,
+                    gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+                );
+            }
+        }
+    });
 }
 
 /// Copy bundled fonts to ~/.local/share/fonts/cos-niri/ and run fc-cache if needed.

@@ -1,0 +1,6 @@
+// Animation settings.
+// Find more information on the wiki:
+// https://niri-wm.github.io/niri/Configuration:-Animations
+animations {
+    // Keep defaults active
+}

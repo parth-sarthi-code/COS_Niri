@@ -1,0 +1,11 @@
+/* Generated theme - do not modify */
+@define-color primary rgb(232, 176, 204);
+@define-color on-primary rgb(43, 18, 31);
+@define-color primary-container rgba(77, 25, 51, 0.14);
+@define-color on-primary-container rgb(234, 200, 217);
+@define-color surface rgba(23, 18, 20, 0.72);
+@define-color surface-variant rgba(255, 255, 255, 0.07);
+@define-color outline rgba(255, 255, 255, 0.10);
+@define-color text-primary #ffffff;
+@define-color text-secondary #c4c6d0;
+@define-color text-muted #938f99;

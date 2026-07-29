@@ -1,0 +1,17 @@
+// All colors here. DON'T add elsewhere!
+include "/home/predator/.config/cos-niri/colors-niri.kdl"
+
+layout {
+    focus-ring {
+        inactive-color "#505050"
+    }
+
+    border {
+        inactive-color "#505050"
+        urgent-color "#9b0000"
+    }
+
+    shadow {
+        color "#0007"
+    }
+}

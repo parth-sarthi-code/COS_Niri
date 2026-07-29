@@ -6,4 +6,5 @@ pub mod brightness;
 pub mod network;
 pub mod night_light;
 pub mod power_profile;
+pub mod theme;
 pub mod worker;
