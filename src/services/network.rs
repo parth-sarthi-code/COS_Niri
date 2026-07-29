@@ -5,6 +5,7 @@ pub struct WifiNetwork {
     pub ssid: String,
     pub signal: u32,
     pub is_connected: bool,
+    pub is_known: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -17,6 +18,26 @@ pub struct NetworkState {
 pub struct NetworkService;
 
 impl NetworkService {
+    /// Get list of saved Wi-Fi connection SSIDs
+    pub fn get_known_wifi_ssids() -> std::collections::HashSet<String> {
+        let mut ssids = std::collections::HashSet::new();
+        if let Ok(output) = Command::new("nmcli")
+            .args(["-t", "-f", "NAME,TYPE", "connection", "show"])
+            .output()
+        {
+            if output.status.success() {
+                let text = String::from_utf8_lossy(&output.stdout);
+                for line in text.lines() {
+                    let parts: Vec<&str> = line.split(':').collect();
+                    if parts.len() >= 2 && parts[1] == "802-11-wireless" {
+                        ssids.insert(parts[0].to_string());
+                    }
+                }
+            }
+        }
+        ssids
+    }
+
     /// Get unified NetworkManager state via nmcli
     pub fn get_state() -> NetworkState {
         let is_enabled = Self::is_wifi_enabled();
@@ -111,6 +132,7 @@ impl NetworkService {
             return Vec::new();
         }
 
+        let known_ssids = Self::get_known_wifi_ssids();
         let mut map = std::collections::HashMap::<String, WifiNetwork>::new();
 
         if let Ok(output) = Command::new("nmcli")
@@ -131,6 +153,7 @@ impl NetworkService {
                         }
 
                         let is_connected = active == "yes" || active == "*";
+                        let is_known = known_ssids.contains(ssid_name);
 
                         map.entry(ssid_name.to_string())
                             .and_modify(|existing| {
@@ -141,6 +164,7 @@ impl NetworkService {
                                 ssid: ssid_name.to_string(),
                                 signal: signal_val,
                                 is_connected,
+                                is_known,
                             });
                     }
                 }

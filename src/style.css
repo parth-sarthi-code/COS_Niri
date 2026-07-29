@@ -459,28 +459,38 @@ box.qs-popup-container button.qs-slider-arrow-btn:hover {
 }
 
 scale.qs-slider trough {
-    background-color: rgba(255, 255, 255, 0.16);
-    border-radius: 2px;
-    min-height: 4px;
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    min-height: 6px;
     border: none;
     box-shadow: none;
 }
 
 scale.qs-slider highlight {
     background-color: #b4c5ff;
-    border-radius: 2px;
-    min-height: 4px;
+    border-radius: 3px;
+    min-height: 6px;
     border: none;
 }
 
 scale.qs-slider slider {
-    background-color: #ffffff;
+    background-color: transparent;
     border-radius: 50%;
-    min-width: 14px;
-    min-height: 14px;
-    margin: -5px 0;
+    min-width: 0px;
+    min-height: 0px;
+    margin: 0;
     border: none;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+    box-shadow: none;
+    transition: all 150ms ease;
+}
+
+scale.qs-slider:hover slider,
+scale.qs-slider:active slider {
+    background-color: #ffffff;
+    min-width: 10px;
+    min-height: 10px;
+    margin: -2px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* --- Footer --- */
@@ -560,6 +570,16 @@ label.qs-list-connected {
     font-weight: 600;
     color: #81c784;
     background-color: rgba(76, 175, 80, 0.18);
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin-right: 6px;
+}
+
+label.qs-list-saved {
+    font-size: 11px;
+    font-weight: 500;
+    color: #c4c6d0;
+    background-color: rgba(255, 255, 255, 0.10);
     padding: 3px 10px;
     border-radius: 12px;
     margin-right: 6px;
