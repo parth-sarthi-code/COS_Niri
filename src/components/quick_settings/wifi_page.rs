@@ -18,7 +18,7 @@ impl WifiPage {
         let container = GtkBox::new(Orientation::Vertical, 8);
         container.add_css_class("qs-subpage");
 
-        // Header: Back Arrow + "Network" Title + Power Switch
+        // Header: Back Arrow + "Network" Title + Refresh Button + Power Switch
         let header = GtkBox::new(Orientation::Horizontal, 8);
         header.add_css_class("qs-subpage-header");
 
@@ -39,9 +39,18 @@ impl WifiPage {
         header.append(&title);
 
         let is_on = NetworkService::is_wifi_enabled();
+
+        // Refresh / Scan Button
+        let refresh_btn = Button::new();
+        refresh_btn.add_css_class("qs-header-icon-btn");
+        let refresh_icon = Label::new(Some("\u{e5d5}")); // refresh
+        refresh_icon.add_css_class("ms-icon");
+        refresh_btn.set_child(Some(&refresh_icon));
+
         let toggle_switch = Switch::new();
         toggle_switch.set_active(is_on);
 
+        header.append(&refresh_btn);
         header.append(&toggle_switch);
         container.append(&header);
 
@@ -57,10 +66,22 @@ impl WifiPage {
         // Initial render
         Self::refresh_list(&list_box, is_on);
 
+        // Manual refresh button click handler
+        let lb_refresh = list_box.clone();
+        refresh_btn.connect_clicked(move |_| {
+            if NetworkService::is_wifi_enabled() {
+                NetworkService::request_scan();
+                Self::refresh_list(&lb_refresh, true);
+            }
+        });
+
         // Switch toggle handler
         let list_box_clone = list_box.clone();
         toggle_switch.connect_state_set(move |_, state| {
             NetworkService::set_wifi_enabled(state);
+            if state {
+                NetworkService::request_scan();
+            }
             Self::refresh_list(&list_box_clone, state);
             glib::Propagation::Proceed
         });
@@ -121,6 +142,15 @@ impl WifiPage {
                     let empty_lbl = Label::new(Some("No networks found"));
                     empty_lbl.add_css_class("qs-subpage-empty");
                     list_box_c.append(&empty_lbl);
+
+                    // Auto retry rescan after 1.5s in case NM radio was still initializing
+                    let lb_retry = list_box_c.clone();
+                    glib::timeout_add_seconds_local(2, move || {
+                        if NetworkService::is_wifi_enabled() {
+                            Self::refresh_list(&lb_retry, true);
+                        }
+                        glib::ControlFlow::Break
+                    });
                 } else {
                     for net in networks {
                         let item_container = GtkBox::new(Orientation::Vertical, 4);
@@ -160,10 +190,13 @@ impl WifiPage {
 
                             let ssid_disc = net.ssid.clone();
                             let lb_ref = list_box_c.clone();
+                            let btn_ref = disc_btn.clone();
                             disc_btn.connect_clicked(move |_| {
+                                btn_ref.set_label("Disconnecting...");
+                                btn_ref.set_sensitive(false);
                                 NetworkService::disconnect_network(Some(&ssid_disc));
                                 let lb_c = lb_ref.clone();
-                                glib::timeout_add_seconds_local(1, move || {
+                                glib::timeout_add_seconds_local(2, move || {
                                     Self::refresh_list(&lb_c, true);
                                     glib::ControlFlow::Break
                                 });
@@ -198,8 +231,11 @@ impl WifiPage {
                             let ssid_conn = net.ssid.clone();
                             let lb_ref2 = list_box_c.clone();
                             let p_entry = pass_entry.clone();
+                            let c_btn = connect_btn.clone();
 
                             connect_btn.connect_clicked(move |_| {
+                                c_btn.set_label("Connecting...");
+                                c_btn.set_sensitive(false);
                                 let pass_text = p_entry.text().to_string();
                                 let pass_opt = if pass_text.is_empty() {
                                     None
@@ -208,7 +244,7 @@ impl WifiPage {
                                 };
                                 NetworkService::connect_network(&ssid_conn, pass_opt);
                                 let lb_c = lb_ref2.clone();
-                                glib::timeout_add_seconds_local(2, move || {
+                                glib::timeout_add_seconds_local(3, move || {
                                     Self::refresh_list(&lb_c, true);
                                     glib::ControlFlow::Break
                                 });

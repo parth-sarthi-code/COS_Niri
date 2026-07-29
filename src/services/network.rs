@@ -1,4 +1,4 @@
-use gio::prelude::*;
+use std::process::Command;
 
 #[derive(Debug, Clone)]
 pub struct WifiNetwork {
@@ -17,259 +17,86 @@ pub struct NetworkState {
 pub struct NetworkService;
 
 impl NetworkService {
-    /// Get unified NetworkManager state via native D-Bus IPC (0 process forks, <0.5ms)
+    /// Get unified NetworkManager state via nmcli
     pub fn get_state() -> NetworkState {
-        if let Ok(conn) = gio::bus_get_sync(gio::BusType::System, gio::Cancellable::NONE) {
-            // Read WirelessEnabled property from org.freedesktop.NetworkManager
-            let is_enabled = conn
-                .call_sync(
-                    Some("org.freedesktop.NetworkManager"),
-                    "/org/freedesktop/NetworkManager",
-                    "org.freedesktop.DBus.Properties",
-                    "Get",
-                    Some(&(
-                        "org.freedesktop.NetworkManager",
-                        "WirelessEnabled",
-                    ).to_variant()),
-                    None,
-                    gio::DBusCallFlags::NONE,
-                    -1,
-                    gio::Cancellable::NONE,
-                )
-                .ok()
-                .and_then(|res| res.child_value(0).get::<glib::Variant>())
-                .and_then(|v| v.get::<bool>())
-                .unwrap_or(false);
+        let is_enabled = Self::is_wifi_enabled();
+        if !is_enabled {
+            return NetworkState {
+                is_enabled: false,
+                ssid: None,
+                signal: None,
+            };
+        }
 
-            if !is_enabled {
-                return NetworkState {
-                    is_enabled: false,
-                    ssid: None,
-                    signal: None,
-                };
-            }
+        let mut ssid = None;
+        let mut signal = None;
 
-            // Read PrimaryConnection object path
-            let primary_path = conn
-                .call_sync(
-                    Some("org.freedesktop.NetworkManager"),
-                    "/org/freedesktop/NetworkManager",
-                    "org.freedesktop.DBus.Properties",
-                    "Get",
-                    Some(&(
-                        "org.freedesktop.NetworkManager",
-                        "PrimaryConnection",
-                    ).to_variant()),
-                    None,
-                    gio::DBusCallFlags::NONE,
-                    -1,
-                    gio::Cancellable::NONE,
-                )
-                .ok()
-                .and_then(|res| res.child_value(0).get::<glib::Variant>())
-                .and_then(|v| v.get::<String>());
+        // Query active wifi connection via nmcli -t -f ACTIVE,SSID,SIGNAL dev wifi list
+        if let Ok(output) = Command::new("nmcli")
+            .args(["-t", "-f", "ACTIVE,SSID,SIGNAL", "dev", "wifi", "list", "--rescan", "no"])
+            .output()
+        {
+            if output.status.success() {
+                let text = String::from_utf8_lossy(&output.stdout);
+                for line in text.lines() {
+                    let fields = parse_terse_line(line);
+                    if fields.len() >= 3 {
+                        let active = &fields[0];
+                        let s_name = &fields[1];
+                        let s_sig = fields[2].parse::<u32>().unwrap_or(0);
 
-            let mut ssid = None;
-            let mut signal = None;
-
-            if let Some(ref path) = primary_path {
-                if path != "/" && !path.is_empty() {
-                    // Read SSID (Id property on ActiveConnection)
-                    ssid = conn
-                        .call_sync(
-                            Some("org.freedesktop.NetworkManager"),
-                            path,
-                            "org.freedesktop.DBus.Properties",
-                            "Get",
-                            Some(&(
-                                "org.freedesktop.NetworkManager.Connection.Active",
-                                "Id",
-                            ).to_variant()),
-                            None,
-                            gio::DBusCallFlags::NONE,
-                            -1,
-                            gio::Cancellable::NONE,
-                        )
-                        .ok()
-                        .and_then(|res| res.child_value(0).get::<glib::Variant>())
-                        .and_then(|v| v.get::<String>());
-
-                    // Read SpecificObject (AccessPoint path)
-                    let ap_path = conn
-                        .call_sync(
-                            Some("org.freedesktop.NetworkManager"),
-                            path,
-                            "org.freedesktop.DBus.Properties",
-                            "Get",
-                            Some(&(
-                                "org.freedesktop.NetworkManager.Connection.Active",
-                                "SpecificObject",
-                            ).to_variant()),
-                            None,
-                            gio::DBusCallFlags::NONE,
-                            -1,
-                            gio::Cancellable::NONE,
-                        )
-                        .ok()
-                        .and_then(|res| res.child_value(0).get::<glib::Variant>())
-                        .and_then(|v| v.get::<String>());
-
-                    if let Some(ref ap) = ap_path {
-                        if ap != "/" && !ap.is_empty() {
-                            // Read Strength property on AccessPoint
-                            let sig_val = conn
-                                .call_sync(
-                                    Some("org.freedesktop.NetworkManager"),
-                                    ap,
-                                    "org.freedesktop.DBus.Properties",
-                                    "Get",
-                                    Some(&(
-                                        "org.freedesktop.NetworkManager.AccessPoint",
-                                        "Strength",
-                                    ).to_variant()),
-                                    None,
-                                    gio::DBusCallFlags::NONE,
-                                    -1,
-                                    gio::Cancellable::NONE,
-                                )
-                                .ok()
-                                .and_then(|res| res.child_value(0).get::<glib::Variant>())
-                                .and_then(|v| v.get::<u8>());
-
-                            if let Some(s) = sig_val {
-                                signal = Some(s as u32);
-                            }
+                        if (active == "yes" || active == "*") && !s_name.is_empty() {
+                            ssid = Some(s_name.clone());
+                            signal = Some(s_sig);
+                            break;
                         }
                     }
                 }
             }
+        }
 
-            NetworkState {
-                is_enabled,
-                ssid,
-                signal,
-            }
-        } else {
-            NetworkState::default()
+        NetworkState {
+            is_enabled,
+            ssid,
+            signal,
         }
     }
 
-    /// Check if Wi-Fi interface is enabled via native D-Bus
+    /// Check if Wi-Fi interface is enabled via nmcli
     pub fn is_wifi_enabled() -> bool {
-        Self::get_state().is_enabled
+        if let Ok(output) = Command::new("nmcli").args(["radio", "wifi"]).output() {
+            if output.status.success() {
+                let status = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+                return status == "enabled";
+            }
+        }
+        false
     }
 
-    /// Toggle Wi-Fi state via native D-Bus IPC (0 process forks)
+    /// Toggle Wi-Fi state via nmcli
     pub fn set_wifi_enabled(enable: bool) {
+        let arg = if enable { "on" } else { "off" };
         crate::services::worker::TaskWorker::dispatch(move || {
-            if let Ok(conn) = gio::bus_get_sync(gio::BusType::System, gio::Cancellable::NONE) {
-                let _ = conn.call_sync(
-                    Some("org.freedesktop.NetworkManager"),
-                    "/org/freedesktop/NetworkManager",
-                    "org.freedesktop.DBus.Properties",
-                    "Set",
-                    Some(&(
-                        "org.freedesktop.NetworkManager",
-                        "WirelessEnabled",
-                        enable.to_variant(),
-                    ).to_variant()),
-                    None,
-                    gio::DBusCallFlags::NONE,
-                    -1,
-                    gio::Cancellable::NONE,
-                );
-
-                if enable {
-                    Self::request_scan_internal(&conn);
-                }
+            let _ = Command::new("nmcli").args(["radio", "wifi", arg]).output();
+            if enable {
+                let _ = Command::new("nmcli").args(["dev", "wifi", "rescan"]).output();
             }
         });
     }
 
-    /// Trigger background Wi-Fi scan over D-Bus
+    /// Trigger background Wi-Fi scan via nmcli
     pub fn request_scan() {
         crate::services::worker::TaskWorker::dispatch(move || {
-            if let Ok(conn) = gio::bus_get_sync(gio::BusType::System, gio::Cancellable::NONE) {
-                Self::request_scan_internal(&conn);
-            }
+            let _ = Command::new("nmcli").args(["dev", "wifi", "rescan"]).output();
         });
     }
 
-    fn request_scan_internal(conn: &gio::DBusConnection) {
-        if let Some(wifi_dev) = Self::get_wifi_device_path(conn) {
-            let empty_dict: std::collections::HashMap<String, glib::Variant> = std::collections::HashMap::new();
-            let _ = conn.call_sync(
-                Some("org.freedesktop.NetworkManager"),
-                &wifi_dev,
-                "org.freedesktop.NetworkManager.Device.Wireless",
-                "RequestScan",
-                Some(&(empty_dict,).to_variant()),
-                None,
-                gio::DBusCallFlags::NONE,
-                -1,
-                gio::Cancellable::NONE,
-            );
-        }
-    }
-
-    /// Find Wi-Fi device object path (DeviceType == 2)
-    fn get_wifi_device_path(conn: &gio::DBusConnection) -> Option<String> {
-        let res = conn
-            .call_sync(
-                Some("org.freedesktop.NetworkManager"),
-                "/org/freedesktop/NetworkManager",
-                "org.freedesktop.NetworkManager",
-                "GetDevices",
-                None,
-                None,
-                gio::DBusCallFlags::NONE,
-                -1,
-                gio::Cancellable::NONE,
-            )
-            .ok()?;
-
-        let var = res.child_value(0);
-        let mut dev_paths = Vec::new();
-        for i in 0..var.n_children() {
-            let elem = var.child_value(i);
-            if let Some(s) = elem.str() {
-                dev_paths.push(s.to_string());
-            }
-        }
-
-        for path in dev_paths {
-            let dev_type = conn
-                .call_sync(
-                    Some("org.freedesktop.NetworkManager"),
-                    &path,
-                    "org.freedesktop.DBus.Properties",
-                    "Get",
-                    Some(&(
-                        "org.freedesktop.NetworkManager.Device",
-                        "DeviceType",
-                    ).to_variant()),
-                    None,
-                    gio::DBusCallFlags::NONE,
-                    -1,
-                    gio::Cancellable::NONE,
-                )
-                .ok()
-                .and_then(|res| res.child_value(0).get::<glib::Variant>())
-                .and_then(|v| v.get::<u32>());
-
-            if dev_type == Some(2) {
-                return Some(path);
-            }
-        }
-        None
-    }
-
-    /// Get active SSID via D-Bus
+    /// Get active SSID
     pub fn get_active_ssid() -> Option<String> {
         Self::get_state().ssid
     }
 
-    /// Get active signal percentage via D-Bus
+    /// Get active signal percentage
     pub fn get_active_signal() -> Option<u32> {
         Self::get_state().signal
     }
@@ -278,113 +105,39 @@ impl NetworkService {
         Self::get_scanned_networks()
     }
 
-    /// Scan Wi-Fi access points 100% natively via System D-Bus IPC (0 process forks)
+    /// Scan Wi-Fi access points via nmcli
     pub fn get_scanned_networks() -> Vec<WifiNetwork> {
         let mut list = Vec::new();
-        let state = Self::get_state();
-        if !state.is_enabled {
+        if !Self::is_wifi_enabled() {
             return list;
         }
 
-        if let Ok(conn) = gio::bus_get_sync(gio::BusType::System, gio::Cancellable::NONE) {
-            if let Some(wifi_dev) = Self::get_wifi_device_path(&conn) {
-                // Call GetAllAccessPoints to fetch all cached and live access points
-                let ap_paths_val = conn
-                    .call_sync(
-                        Some("org.freedesktop.NetworkManager"),
-                        &wifi_dev,
-                        "org.freedesktop.NetworkManager.Device.Wireless",
-                        "GetAllAccessPoints",
-                        None,
-                        None,
-                        gio::DBusCallFlags::NONE,
-                        -1,
-                        gio::Cancellable::NONE,
-                    )
-                    .ok()
-                    .map(|res| res.child_value(0));
+        if let Ok(output) = Command::new("nmcli")
+            .args(["-t", "-f", "ACTIVE,SSID,SIGNAL", "dev", "wifi", "list", "--rescan", "no"])
+            .output()
+        {
+            if output.status.success() {
+                let text = String::from_utf8_lossy(&output.stdout);
+                for line in text.lines() {
+                    let fields = parse_terse_line(line);
+                    if fields.len() >= 3 {
+                        let active = &fields[0];
+                        let ssid_name = &fields[1];
+                        let signal_val = fields[2].parse::<u32>().unwrap_or(0);
 
-                let mut ap_paths = Vec::new();
-                if let Some(ap_var) = ap_paths_val {
-                    for i in 0..ap_var.n_children() {
-                        let elem = ap_var.child_value(i);
-                        if let Some(s) = elem.str() {
-                            ap_paths.push(s.to_string());
+                        if ssid_name.is_empty() {
+                            continue;
                         }
-                    }
-                }
 
-                let active_ssid = state.ssid.unwrap_or_default();
+                        let is_connected = active == "yes" || active == "*";
 
-                for ap_path in ap_paths {
-                    // Fetch all AccessPoint properties in a single D-Bus round-trip
-                    let all_props = conn
-                        .call_sync(
-                            Some("org.freedesktop.NetworkManager"),
-                            &ap_path,
-                            "org.freedesktop.DBus.Properties",
-                            "GetAll",
-                            Some(&("org.freedesktop.NetworkManager.AccessPoint",).to_variant()),
-                            None,
-                            gio::DBusCallFlags::NONE,
-                            -1,
-                            gio::Cancellable::NONE,
-                        )
-                        .ok()
-                        .map(|res| res.child_value(0));
-
-                    let props_var = match all_props {
-                        Some(v) => v,
-                        None => continue,
-                    };
-
-                    // Parse SSID from `ay` byte array and Strength from `y`
-                    // props_var is a{sv}: dict of (string, variant)
-                    let mut ssid_bytes = Vec::new();
-                    let mut strength: u32 = 0;
-
-                    for i in 0..props_var.n_children() {
-                        let entry = props_var.child_value(i);
-                        let key = match entry.child_value(0).str() {
-                            Some(k) => k.to_string(),
-                            None => continue,
-                        };
-                        // child_value(1) is the `v` (boxed Variant) — unwrap one level
-                        let boxed = entry.child_value(1);
-                        let inner = if boxed.type_().as_str() == "v" {
-                            boxed.child_value(0)
-                        } else {
-                            boxed
-                        };
-
-                        match key.as_str() {
-                            "Ssid" => {
-                                for k in 0..inner.n_children() {
-                                    if let Some(b) = inner.child_value(k).get::<u8>() {
-                                        ssid_bytes.push(b);
-                                    }
-                                }
-                            }
-                            "Strength" => {
-                                strength = inner.get::<u8>().unwrap_or(0) as u32;
-                            }
-                            _ => {}
+                        if !list.iter().any(|n: &WifiNetwork| n.ssid == *ssid_name) {
+                            list.push(WifiNetwork {
+                                ssid: ssid_name.clone(),
+                                signal: signal_val,
+                                is_connected,
+                            });
                         }
-                    }
-
-                    let ssid_str = String::from_utf8(ssid_bytes).unwrap_or_default();
-                    if ssid_str.is_empty() {
-                        continue;
-                    }
-
-                    let is_connected = !active_ssid.is_empty() && ssid_str == active_ssid;
-
-                    if !list.iter().any(|n: &WifiNetwork| n.ssid == ssid_str) {
-                        list.push(WifiNetwork {
-                            ssid: ssid_str,
-                            signal: strength,
-                            is_connected,
-                        });
                     }
                 }
             }
@@ -402,83 +155,43 @@ impl NetworkService {
         let s = ssid.to_string();
         let p = password.map(|pass| pass.to_string());
         crate::services::worker::TaskWorker::dispatch(move || {
-            if let Ok(conn) = gio::bus_get_sync(gio::BusType::System, gio::Cancellable::NONE) {
-                if let Some(wifi_dev) = Self::get_wifi_device_path(&conn) {
-                    let mut connection_dict = std::collections::HashMap::new();
-
-                    let mut s_wireless = std::collections::HashMap::new();
-                    s_wireless.insert("ssid".to_string(), s.as_bytes().to_variant());
-                    connection_dict.insert("802-11-wireless".to_string(), s_wireless);
-
-                    if let Some(pass) = p {
-                        let mut security = std::collections::HashMap::new();
-                        security.insert("key-mgmt".to_string(), "wpa-psk".to_variant());
-                        security.insert("psk".to_string(), pass.to_variant());
-                        connection_dict.insert("802-11-wireless-security".to_string(), security);
-                    }
-
-                    let _ = conn.call_sync(
-                        Some("org.freedesktop.NetworkManager"),
-                        "/org/freedesktop/NetworkManager",
-                        "org.freedesktop.NetworkManager",
-                        "AddAndActivateConnection",
-                        Some(&(
-                            connection_dict,
-                            wifi_dev,
-                            "/",
-                        ).to_variant()),
-                        None,
-                        gio::DBusCallFlags::NONE,
-                        -1,
-                        gio::Cancellable::NONE,
-                    );
+            let mut cmd = Command::new("nmcli");
+            cmd.args(["dev", "wifi", "connect", &s]);
+            if let Some(ref pass) = p {
+                if !pass.is_empty() {
+                    cmd.args(["password", pass]);
                 }
             }
+            let _ = cmd.output();
         });
     }
 
-    pub fn disconnect_network(_ssid: Option<&str>) {
+    pub fn disconnect_network(ssid: Option<&str>) {
+        let s = ssid.map(|s| s.to_string());
         crate::services::worker::TaskWorker::dispatch(move || {
-            if let Ok(conn) = gio::bus_get_sync(gio::BusType::System, gio::Cancellable::NONE) {
-                let primary_path = conn
-                    .call_sync(
-                        Some("org.freedesktop.NetworkManager"),
-                        "/org/freedesktop/NetworkManager",
-                        "org.freedesktop.DBus.Properties",
-                        "Get",
-                        Some(&(
-                            "org.freedesktop.NetworkManager",
-                            "PrimaryConnection",
-                        ).to_variant()),
-                        None,
-                        gio::DBusCallFlags::NONE,
-                        -1,
-                        gio::Cancellable::NONE,
-                    )
-                    .ok()
-                    .and_then(|res| res.child_value(0).get::<glib::Variant>())
-                    .and_then(|v| v.get::<String>());
-
-                if let Some(path) = primary_path {
-                    if path != "/" && !path.is_empty() {
-                        let _ = conn.call_sync(
-                            Some("org.freedesktop.NetworkManager"),
-                            "/org/freedesktop/NetworkManager",
-                            "org.freedesktop.NetworkManager",
-                            "DeactivateConnection",
-                            Some(&(path,).to_variant()),
-                            None,
-                            gio::DBusCallFlags::NONE,
-                            -1,
-                            gio::Cancellable::NONE,
-                        );
+            if let Some(ref ssid_name) = s {
+                let _ = Command::new("nmcli")
+                    .args(["connection", "down", "id", ssid_name])
+                    .output();
+            } else {
+                if let Ok(output) = Command::new("nmcli").args(["-t", "-f", "DEVICE,TYPE", "dev"]).output() {
+                    if output.status.success() {
+                        let text = String::from_utf8_lossy(&output.stdout);
+                        for line in text.lines() {
+                            let parts: Vec<&str> = line.split(':').collect();
+                            if parts.len() >= 2 && parts[1] == "wifi" {
+                                let dev = parts[0];
+                                let _ = Command::new("nmcli").args(["dev", "disconnect", dev]).output();
+                                break;
+                            }
+                        }
                     }
                 }
             }
         });
     }
 
-    /// Pure Native GIO D-Bus event stream listener for NetworkManager signals (0 nmcli child processes)
+    /// D-Bus event stream listener for NetworkManager signals (keeps live UI in sync)
     pub fn listen_events<F>(callback: F)
     where
         F: Fn() + Send + 'static,
@@ -497,7 +210,6 @@ impl NetworkService {
                     },
                 );
 
-                // Keep thread worker alive in D-Bus main loop
                 let loop_ctx = glib::MainContext::new();
                 let main_loop = glib::MainLoop::new(Some(&loop_ctx), false);
                 let _ = loop_ctx.with_thread_default(|| {
@@ -506,4 +218,31 @@ impl NetworkService {
             }
         });
     }
+}
+
+/// Helper to parse colon-separated nmcli -t lines handling escaped colons (`\:`)
+fn parse_terse_line(line: &str) -> Vec<String> {
+    let mut fields = Vec::new();
+    let mut current = String::new();
+    let mut chars = line.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            if let Some(&next) = chars.peek() {
+                if next == ':' || next == '\\' {
+                    current.push(next);
+                    chars.next();
+                    continue;
+                }
+            }
+            current.push(c);
+        } else if c == ':' {
+            fields.push(current);
+            current = String::new();
+        } else {
+            current.push(c);
+        }
+    }
+    fields.push(current);
+    fields
 }

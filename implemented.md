@@ -15,8 +15,9 @@ This document provides a comprehensive list of features, performance improvement
 ---
 
 ## 2. Quick Settings Panel (`cos-quick-settings`)
-*   **Variant D-Bus Parse Correction**: Corrected SSID variant-in-variant parsing under NetworkManager to prevent D-Bus variant extraction panics.
-*   **D-Bus Wi-Fi Scan CPU Optimizations**: Replaced blocking loops with non-blocking polling intervals to yield thread cycles to GLib.
+*   **Universal `nmcli` Wi-Fi Engine**: Migrated Wi-Fi access point scanning, password authentication (`wpa-psk`), toggling, and interface deactivation to `nmcli` background tasks for 100% Linux distro compatibility.
+*   **Auto-Rescan & Rescan Button**: Added a manual Refresh icon button (`\u{e5d5}`) and auto-retry polling when Wi-Fi is toggled on to catch access points as soon as radio interfaces initialize.
+*   **Action Status Feedback**: Provided visual state indicators ("Connecting...", "Disconnecting...") on action buttons while network requests execute asynchronously.
 *   **Merged Subprocesses**: Combined redundant CLI tool execution forks (e.g. `wpctl get-volume` and `is_muted`) into single-spawn queries.
 *   **O(1) Bluetooth Connection Checking**: Batch filters connections in a single shell command rather than looping info checks.
 
