@@ -105,12 +105,13 @@ impl NetworkService {
         Self::get_scanned_networks()
     }
 
-    /// Scan Wi-Fi access points via nmcli
+    /// Scan Wi-Fi access points via nmcli (DSA Optimized: O(N) Hash Deduplication + O(N log N) Priority Sorting)
     pub fn get_scanned_networks() -> Vec<WifiNetwork> {
-        let mut list = Vec::new();
         if !Self::is_wifi_enabled() {
-            return list;
+            return Vec::new();
         }
+
+        let mut map = std::collections::HashMap::<String, WifiNetwork>::new();
 
         if let Ok(output) = Command::new("nmcli")
             .args(["-t", "-f", "ACTIVE,SSID,SIGNAL", "dev", "wifi", "list", "--rescan", "no"])
@@ -122,7 +123,7 @@ impl NetworkService {
                     let fields = parse_terse_line(line);
                     if fields.len() >= 3 {
                         let active = &fields[0];
-                        let ssid_name = &fields[1];
+                        let ssid_name = fields[1].trim();
                         let signal_val = fields[2].parse::<u32>().unwrap_or(0);
 
                         if ssid_name.is_empty() {
@@ -131,19 +132,28 @@ impl NetworkService {
 
                         let is_connected = active == "yes" || active == "*";
 
-                        if !list.iter().any(|n: &WifiNetwork| n.ssid == *ssid_name) {
-                            list.push(WifiNetwork {
-                                ssid: ssid_name.clone(),
+                        map.entry(ssid_name.to_string())
+                            .and_modify(|existing| {
+                                existing.is_connected = existing.is_connected || is_connected;
+                                existing.signal = existing.signal.max(signal_val);
+                            })
+                            .or_insert(WifiNetwork {
+                                ssid: ssid_name.to_string(),
                                 signal: signal_val,
                                 is_connected,
                             });
-                        }
                     }
                 }
             }
         }
 
-        list.sort_by(|a, b| b.signal.cmp(&a.signal));
+        let mut list: Vec<WifiNetwork> = map.into_values().collect();
+        // Priority sort: Connected network ranks #1, followed by descending signal strength
+        list.sort_by(|a, b| {
+            b.is_connected
+                .cmp(&a.is_connected)
+                .then_with(|| b.signal.cmp(&a.signal))
+        });
         list
     }
 

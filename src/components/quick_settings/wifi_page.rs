@@ -17,6 +17,7 @@ impl WifiPage {
     {
         let container = GtkBox::new(Orientation::Vertical, 8);
         container.add_css_class("qs-subpage");
+        container.set_vexpand(true);
 
         // Header: Back Arrow + "Network" Title + Refresh Button + Power Switch
         let header = GtkBox::new(Orientation::Horizontal, 8);
@@ -56,8 +57,8 @@ impl WifiPage {
 
         // Network List inside ScrolledWindow
         let scrolled = ScrolledWindow::new();
-        scrolled.set_min_content_height(220);
-        scrolled.set_max_content_height(260);
+        scrolled.set_min_content_height(280);
+        scrolled.set_vexpand(true);
         scrolled.add_css_class("qs-subpage-scroll");
 
         let list_box = GtkBox::new(Orientation::Vertical, 4);
@@ -143,7 +144,7 @@ impl WifiPage {
                     empty_lbl.add_css_class("qs-subpage-empty");
                     list_box_c.append(&empty_lbl);
 
-                    // Auto retry rescan after 1.5s in case NM radio was still initializing
+                    // Auto retry rescan after 2s in case NM radio was still initializing
                     let lb_retry = list_box_c.clone();
                     glib::timeout_add_seconds_local(2, move || {
                         if NetworkService::is_wifi_enabled() {
@@ -155,6 +156,10 @@ impl WifiPage {
                     for net in networks {
                         let item_container = GtkBox::new(Orientation::Vertical, 4);
                         item_container.add_css_class("qs-wifi-item-card");
+
+                        if net.is_connected {
+                            item_container.add_css_class("connected");
+                        }
 
                         let row = GtkBox::new(Orientation::Horizontal, 8);
                         row.add_css_class("qs-list-item-row");
@@ -202,9 +207,8 @@ impl WifiPage {
                                 });
                             });
                             row.append(&disc_btn);
-                        }
-
-                        if !net.is_connected {
+                            item_container.append(&row);
+                        } else {
                             let lock_lbl = Label::new(Some("\u{e5cf}")); // keyboard_arrow_down
                             lock_lbl.add_css_class("ms-icon");
                             lock_lbl.add_css_class("ms-icon-sm");
@@ -226,7 +230,7 @@ impl WifiPage {
                             pass_box.append(&pass_entry);
 
                             let connect_btn = Button::with_label("Connect");
-                            connect_btn.add_css_class("qs-disc-btn");
+                            connect_btn.add_css_class("qs-conn-btn");
 
                             let ssid_conn = net.ssid.clone();
                             let lb_ref2 = list_box_c.clone();
@@ -268,8 +272,6 @@ impl WifiPage {
                                     entry_focus.grab_focus();
                                 }
                             });
-                        } else {
-                            item_container.append(&row);
                         }
 
                         list_box_c.append(&item_container);

@@ -520,33 +520,98 @@ box.qs-subpage-list {
     margin-top: 4px;
 }
 
-box.qs-popup-container button.qs-list-item {
-    background-color: rgba(255, 255, 255, 0.06);
-    border-radius: 12px;
-    padding: 8px 12px;
-    margin: 2px 0;
+/* --- Wi-Fi Item Cards --- */
+box.qs-wifi-item-card {
+    background-color: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 16px;
+    padding: 10px 14px;
+    margin: 4px 0;
+    transition: all 180ms ease;
+}
+
+box.qs-wifi-item-card:hover {
+    background-color: rgba(255, 255, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+box.qs-wifi-item-card.connected {
+    background-color: rgba(180, 197, 255, 0.14);
+    border: 1px solid rgba(180, 197, 255, 0.32);
+}
+
+box.qs-popup-container button.qs-list-item-btn {
+    background: none;
     border: none;
-    color: #e3e2e6;
-    transition: background-color 150ms ease;
-}
-
-box.qs-popup-container button.qs-list-item:hover {
-    background-color: rgba(255, 255, 255, 0.14);
-}
-
-box.qs-popup-container button.qs-list-item.active {
-    background-color: rgba(180, 197, 255, 0.20);
-    border: 1px solid rgba(180, 197, 255, 0.30);
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    color: inherit;
 }
 
 label.qs-list-title {
     font-size: 13px;
     font-weight: 500;
+    color: #ffffff;
 }
 
 label.qs-list-connected {
     font-size: 11px;
-    color: #b4c5ff;
+    font-weight: 600;
+    color: #81c784;
+    background-color: rgba(76, 175, 80, 0.18);
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin-right: 6px;
+}
+
+box.qs-popup-container button.qs-disc-btn {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: #e3e2e6;
+    border-radius: 12px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    transition: all 150ms ease;
+}
+
+box.qs-popup-container button.qs-disc-btn:hover {
+    background-color: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+
+box.qs-popup-container button.qs-conn-btn {
+    background-color: #b4c5ff;
+    color: #1a1b38;
+    border-radius: 12px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border: none;
+    transition: all 150ms ease;
+}
+
+box.qs-popup-container button.qs-conn-btn:hover {
+    background-color: #d0bcff;
+}
+
+box.qs-pass-box {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+entry.qs-pass-input {
+    background-color: rgba(0, 0, 0, 0.35);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    padding: 4px 10px;
+}
+
+entry.qs-pass-input:focus-within {
+    border-color: #b4c5ff;
 }
 
 label.qs-subpage-empty {
