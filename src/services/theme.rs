@@ -166,6 +166,29 @@ impl ThemeService {
         if let Ok(mut file) = File::create(niri_kdl_path) {
             let _ = file.write_all(niri_kdl.as_bytes());
         }
+
+        // Generate Fuzzel color file
+        let fuzzel_ini = format!(
+            "[colors]\n\
+             background={:02x}{:02x}{:02x}e6\n\
+             text=ffffffff\n\
+             match={:02x}{:02x}{:02x}ff\n\
+             selection={:02x}{:02x}{:02x}4d\n\
+             selection-text=ffffffff\n\
+             selection-match={:02x}{:02x}{:02x}ff\n\
+             border={:02x}{:02x}{:02x}ff\n",
+            surface.0, surface.1, surface.2,
+            primary.0, primary.1, primary.2,
+            primary.0, primary.1, primary.2,
+            primary.0, primary.1, primary.2,
+            primary.0, primary.1, primary.2,
+        );
+        let fuzzel_path = dirs::home_dir()
+            .unwrap_or_default()
+            .join(".config/cos-niri/fuzzel-colors.ini");
+        if let Ok(mut file) = File::create(fuzzel_path) {
+            let _ = file.write_all(fuzzel_ini.as_bytes());
+        }
     }
 
     fn write_fallback_theme() {
@@ -200,6 +223,22 @@ impl ThemeService {
             .join(".config/cos-niri/colors-niri.kdl");
         if let Ok(mut file) = File::create(niri_kdl_path) {
             let _ = file.write_all(niri_kdl.as_bytes());
+        }
+
+        // Generate fallback Fuzzel color file
+        let fuzzel_ini = "[colors]\n\
+                           background=12131ae6\n\
+                           text=ffffffff\n\
+                           match=b4c5ffff\n\
+                           selection=b4c5ff4d\n\
+                           selection-text=ffffffff\n\
+                           selection-match=b4c5ffff\n\
+                           border=b4c5ffff\n";
+        let fuzzel_path = dirs::home_dir()
+            .unwrap_or_default()
+            .join(".config/cos-niri/fuzzel-colors.ini");
+        if let Ok(mut file) = File::create(fuzzel_path) {
+            let _ = file.write_all(fuzzel_ini.as_bytes());
         }
     }
 }

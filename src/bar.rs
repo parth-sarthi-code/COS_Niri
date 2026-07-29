@@ -53,9 +53,8 @@ impl BarWindow {
         // Instantiate Calendar floating popup
         let calendar = Rc::new(CalendarPopup::new(app));
 
-        let launcher_toggle_ref = Rc::clone(&launcher);
         let left_section = LeftSection::new(move || {
-            launcher_toggle_ref.toggle();
+            let _ = std::process::Command::new("fuzzel").spawn();
         });
         let center_section = CenterSection::new();
 
