@@ -896,4 +896,47 @@ label.launcher-app-name {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+/* === SLEEK & MINIMAL SWITCH STYLING === */
+switch {
+    background-color: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 14px;
+    min-width: 44px;
+    min-height: 24px;
+    padding: 0;
+    margin: 0;
+    transition: all 180ms ease;
+    outline: none;
+}
+
+switch:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+switch:checked {
+    background-color: #b4c5ff;
+    border-color: #b4c5ff;
+}
+
+switch:checked:hover {
+    background-color: #c0d0ff;
+    border-color: #c0d0ff;
+}
+
+switch slider {
+    background-color: #e3e2e6;
+    border-radius: 50%;
+    min-width: 16px;
+    min-height: 16px;
+    margin: 3px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    transition: all 180ms cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+switch:checked slider {
+    background-color: #1a1b38;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
 
