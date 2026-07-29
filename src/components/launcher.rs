@@ -195,6 +195,14 @@ impl LauncherPopup {
         self.search_entry.connect_search_changed(move |_| {
             s_ref.refresh_apps();
         });
+
+        // Set keyboard mode to OnDemand ONLY when the search input is focused/clicked
+        let s_ref_focus = self.clone_ref();
+        let focus_controller = gtk4::EventControllerFocus::new();
+        focus_controller.connect_enter(move |_| {
+            s_ref_focus.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
+        });
+        self.search_entry.add_controller(focus_controller);
     }
 
     fn clone_ref(&self) -> Self {
@@ -210,10 +218,10 @@ impl LauncherPopup {
             self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
             crate::services::animation::slide_down_close(&self.window, 56);
         } else {
-            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
+            // Keep KeyboardMode::None when launched until search pill is clicked
+            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
             self.search_entry.set_text("");
             self.refresh_apps();
-            self.search_entry.grab_focus();
             crate::services::animation::slide_up_open(&self.window, 56);
         }
     }
