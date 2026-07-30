@@ -1,9 +1,12 @@
 use crate::services::battery::BatteryService;
 use crate::services::bluetooth::BluetoothService;
 use crate::services::network::NetworkService;
+use crate::services::tray::TrayService;
 use chrono::Local;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Label, Orientation};
+use gtk4::gdk;
+use gtk4::gdk_pixbuf::{Pixbuf, Colorspace};
 
 #[allow(dead_code)]
 pub struct RightSection {
@@ -24,6 +27,95 @@ impl RightSection {
         let container = GtkBox::new(Orientation::Horizontal, 6);
         container.add_css_class("right-section");
         container.set_valign(gtk4::Align::Center);
+
+        // System Tray Container
+        let tray_box = GtkBox::new(Orientation::Horizontal, 6);
+        tray_box.add_css_class("tray-container");
+        tray_box.set_valign(gtk4::Align::Center);
+        container.append(&tray_box);
+
+        let tray_box_clone = tray_box.clone();
+        TrayService::global().connect_change(move || {
+            while let Some(child) = tray_box_clone.first_child() {
+                tray_box_clone.remove(&child);
+            }
+
+            let items = TrayService::global().get_items();
+            for item in items {
+                if item.status == "Passive" {
+                    continue;
+                }
+
+                let btn = Button::new();
+                btn.add_css_class("icon-btn-circle");
+                btn.set_tooltip_text(Some(&item.title));
+
+                let bubble = GtkBox::new(Orientation::Horizontal, 0);
+                bubble.add_css_class("icon-bubble");
+                bubble.set_halign(gtk4::Align::Center);
+                bubble.set_valign(gtk4::Align::Center);
+                bubble.set_size_request(36, 36);
+
+                let mut icon_widget = None::<gtk4::Widget>;
+
+                if let Some(ref pixmap) = item.pixmap {
+                    if let Some(texture) = Self::texture_from_pixmap(pixmap) {
+                        let img = gtk4::Image::from_paintable(Some(&texture));
+                        img.set_pixel_size(18);
+                        img.set_halign(gtk4::Align::Center);
+                        img.set_valign(gtk4::Align::Center);
+                        img.set_hexpand(true);
+                        img.set_vexpand(true);
+                        icon_widget = Some(img.upcast::<gtk4::Widget>());
+                    }
+                }
+
+                if icon_widget.is_none() {
+                    if let Some(ref icon_name) = item.icon_name {
+                        let img = gtk4::Image::from_icon_name(icon_name);
+                        img.set_pixel_size(18);
+                        img.set_halign(gtk4::Align::Center);
+                        img.set_valign(gtk4::Align::Center);
+                        img.set_hexpand(true);
+                        img.set_vexpand(true);
+                        icon_widget = Some(img.upcast::<gtk4::Widget>());
+                    }
+                }
+
+                if icon_widget.is_none() {
+                    let label = Label::new(Some("\u{e5c3}"));
+                    label.add_css_class("ms-icon");
+                    label.add_css_class("ms-icon-sm");
+                    label.set_halign(gtk4::Align::Center);
+                    label.set_valign(gtk4::Align::Center);
+                    label.set_hexpand(true);
+                    label.set_vexpand(true);
+                    icon_widget = Some(label.upcast::<gtk4::Widget>());
+                }
+
+                if let Some(widget) = icon_widget {
+                    bubble.append(&widget);
+                }
+
+                btn.set_child(Some(&bubble));
+
+                let id_left = item.identifier.clone();
+                btn.connect_clicked(move |_| {
+                    TrayService::global().activate(&id_left, 0, 0);
+                });
+
+                let id_right = item.identifier.clone();
+                let gesture = gtk4::GestureClick::new();
+                gesture.set_button(gdk::BUTTON_SECONDARY);
+                gesture.connect_pressed(move |g, _, _, _| {
+                    g.set_state(gtk4::EventSequenceState::Claimed);
+                    TrayService::global().context_menu(&id_right, 0, 0);
+                });
+                btn.add_controller(gesture);
+
+                tray_box_clone.append(&btn);
+            }
+        });
 
         // 1. Stylus Button
         let stylus_btn = Button::new();
@@ -274,5 +366,35 @@ impl RightSection {
             85..=99  => "\u{ebd2}",  // battery_6_bar
             _        => "\u{ebd2}",  // battery_6_bar (full)
         }
+    }
+
+    fn texture_from_pixmap(pixmap: &crate::services::tray::TrayPixmap) -> Option<gdk::Texture> {
+        let width = pixmap.width;
+        let height = pixmap.height;
+        if width <= 0 || height <= 0 {
+            return None;
+        }
+
+        let raw = pixmap.buffer.as_ref();
+        let len = raw.len();
+        let mut rgba = Vec::with_capacity(len);
+
+        let mut idx = 0;
+        while idx + 3 < len {
+            let a = raw[idx];
+            let r = raw[idx + 1];
+            let g = raw[idx + 2];
+            let b = raw[idx + 3];
+            rgba.push(r);
+            rgba.push(g);
+            rgba.push(b);
+            rgba.push(a);
+            idx += 4;
+        }
+
+        let stride = width * 4;
+        let gbytes = glib::Bytes::from_owned(rgba);
+        let pixbuf = Pixbuf::from_bytes(&gbytes, Colorspace::Rgb, true, 8, width, height, stride);
+        Some(gdk::Texture::for_pixbuf(&pixbuf))
     }
 }
