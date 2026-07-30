@@ -1,6 +1,7 @@
 use crate::niri_ipc::{NiriIpcClient, NiriWorkspace};
 use gtk4::prelude::*;
-use gtk4::{Box as GtkBox, Button, Label, Orientation, Separator};
+use gtk4::{Box as GtkBox, Button, Label, Orientation, Separator, EventControllerScroll, EventControllerScrollFlags};
+use gtk4::glib::Propagation;
 use niri_ipc::Event;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -10,6 +11,7 @@ struct WorkspaceState {
     workspace_box: GtkBox,
     pills: HashMap<u64, Button>,
     current_order: Vec<u64>,
+    active_id: Option<u64>,
 }
 
 thread_local! {
@@ -74,11 +76,46 @@ impl LeftSection {
             workspace_box: workspace_box.clone(),
             pills: HashMap::new(),
             current_order: Vec::new(),
+            active_id: None,
         }));
 
         STATE.with(|cell| {
             *cell.borrow_mut() = Some(Rc::clone(&state));
         });
+
+        // Register mouse scroll controller on the workspace pills container
+        let scroll = EventControllerScroll::new(EventControllerScrollFlags::VERTICAL);
+        let state_clone = Rc::clone(&state);
+        scroll.connect_scroll(move |_controller, _dx, dy| {
+            let st = state_clone.borrow();
+            if let Some(active_id) = st.active_id {
+                if let Some(pos) = st.current_order.iter().position(|&id| id == active_id) {
+                    let target_id = if dy < 0.0 {
+                        // Scroll Up -> Focus previous workspace
+                        if pos > 0 {
+                            Some(st.current_order[pos - 1])
+                        } else {
+                            None
+                        }
+                    } else if dy > 0.0 {
+                        // Scroll Down -> Focus next workspace
+                        if pos + 1 < st.current_order.len() {
+                            Some(st.current_order[pos + 1])
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+
+                    if let Some(tid) = target_id {
+                        NiriIpcClient::focus_workspace_id(tid);
+                    }
+                }
+            }
+            Propagation::Stop
+        });
+        workspace_box.add_controller(scroll);
 
         // Initialize state from Niri
         if let Ok(workspaces) = NiriIpcClient::get_workspaces() {
@@ -100,6 +137,7 @@ impl LeftSection {
 
         // Find active workspace ID
         let active_id = workspaces.iter().find(|ws| ws.is_active || ws.is_focused).map(|ws| ws.id);
+        state.active_id = active_id;
         let new_order: Vec<u64> = workspaces.iter().map(|ws| ws.id).collect();
 
         // Check if workspace set or order changed
@@ -171,7 +209,8 @@ impl LeftSection {
 
     /// Update active workspace pill in-place on WorkspaceActivated event
     fn set_active_workspace(state_rc: &Rc<RefCell<WorkspaceState>>, active_id: u64) {
-        let state = state_rc.borrow();
+        let mut state = state_rc.borrow_mut();
+        state.active_id = Some(active_id);
         for (&id, btn) in &state.pills {
             if id == active_id {
                 btn.add_css_class("active");
