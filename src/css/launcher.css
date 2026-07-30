@@ -86,14 +86,14 @@ window.tahoe-launcher-window {
 }
 
 box.tahoe-launcher-container {
-    background-color: rgba(16, 20, 42, 0.75);
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    background-color: @surface;
+    border: 1px solid @outline;
     border-radius: 24px;
     padding: 20px 24px 16px 24px;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(24px);
     font-family: "Outfit", "Roboto", sans-serif;
-    color: #ffffff;
+    color: @text-primary;
 }
 
 box.tahoe-header-wrapper {
@@ -102,13 +102,13 @@ box.tahoe-header-wrapper {
 
 label.tahoe-title-icon {
     font-size: 22px;
-    color: #a8c7fa;
+    color: @primary;
 }
 
 label.tahoe-title-text {
     font-size: 18px;
     font-weight: 700;
-    color: #ffffff;
+    color: @text-primary;
     letter-spacing: -0.2px;
 }
 
@@ -124,10 +124,10 @@ box.tahoe-category-box {
 
 button.tahoe-category-pill {
     background-image: none;
-    background-color: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background-color: @surface-variant;
+    border: 1px solid @outline;
     border-radius: 16px;
-    color: #ffffff;
+    color: @text-primary;
     padding: 6px 14px;
     font-size: 13px;
     font-weight: 500;
@@ -135,23 +135,23 @@ button.tahoe-category-pill {
 }
 
 button.tahoe-category-pill label {
-    color: #ffffff;
+    color: @text-primary;
 }
 
 button.tahoe-category-pill:hover {
-    background-color: rgba(255, 255, 255, 0.16);
-    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.14);
+    color: @text-primary;
 }
 
 button.tahoe-category-pill.active {
-    background-color: #a8c7fa;
-    border-color: #a8c7fa;
-    color: #0b1d3a;
-    box-shadow: 0 2px 8px rgba(168, 199, 250, 0.35);
+    background-color: @primary;
+    border-color: @primary;
+    color: @on-primary;
+    box-shadow: 0 2px 8px rgba(180, 197, 255, 0.35);
 }
 
 button.tahoe-category-pill.active label {
-    color: #0b1d3a;
+    color: @on-primary;
     font-weight: 700;
 }
 
@@ -160,27 +160,27 @@ box.tahoe-search-wrapper {
 }
 
 searchentry.tahoe-search-pill, entry.tahoe-search-pill {
-    background-color: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background-color: @surface-variant;
+    border: 1px solid @outline;
     border-radius: 18px;
-    color: #ffffff;
+    color: @text-primary;
     padding: 8px 16px;
     font-size: 14px;
     transition: all 180ms ease;
 }
 
 searchentry.tahoe-search-pill text, entry.tahoe-search-pill text {
-    color: #ffffff;
+    color: @text-primary;
 }
 
 searchentry.tahoe-search-pill image, entry.tahoe-search-pill image {
-    color: #a8c7fa;
+    color: @primary;
 }
 
 searchentry.tahoe-search-pill:focus, entry.tahoe-search-pill:focus {
-    border-color: #a8c7fa;
-    background-color: rgba(255, 255, 255, 0.14);
-    box-shadow: 0 0 0 2px rgba(168, 199, 250, 0.25);
+    border-color: @primary;
+    background-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 0 2px @primary-container;
 }
 
 scrolledwindow.tahoe-grid-scroll viewport,
@@ -212,12 +212,12 @@ button.tahoe-app-item {
     border: none;
     border-radius: 16px;
     padding: 8px 4px;
-    color: #ffffff;
+    color: @text-primary;
     transition: all 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 button.tahoe-app-item:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: @surface-variant;
 }
 
 box.tahoe-icon-bubble {
@@ -235,6 +235,6 @@ button.tahoe-app-item:hover box.tahoe-icon-bubble {
 label.tahoe-app-name {
     font-size: 11px;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.88);
+    color: @text-secondary;
     margin-top: 4px;
 }
