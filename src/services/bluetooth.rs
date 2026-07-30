@@ -103,8 +103,9 @@ impl BluetoothService {
         F: FnMut() + Send + 'static,
     {
         thread::spawn(move || {
-            if let Ok(mut child) = Command::new("bluetoothctl")
+            if let Ok(mut child) = Command::new("stdbuf")
                 .env("LC_ALL", "C")
+                .args(["-oL", "bluetoothctl"])
                 .stdout(Stdio::piped())
                 .spawn()
             {

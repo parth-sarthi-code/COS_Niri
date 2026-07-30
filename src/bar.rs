@@ -84,6 +84,8 @@ impl BarWindow {
         let l_dismiss = Rc::clone(&launcher);
         let q_dismiss = Rc::clone(&quick_settings);
         let c_dismiss = Rc::clone(&calendar);
+        let r_dismiss_cell = Rc::new(RefCell::new(None::<Rc<RightSection>>));
+        let r_dismiss_ref = Rc::clone(&r_dismiss_cell);
         let cc_cell = Rc::new(RefCell::new(Option::<Rc<ClickCatcher>>::None));
         let cc_dismiss_ref = Rc::clone(&cc_cell);
 
@@ -91,6 +93,9 @@ impl BarWindow {
             l_dismiss.close();
             q_dismiss.close();
             c_dismiss.close();
+            if let Some(ref r) = *r_dismiss_ref.borrow() {
+                r.close();
+            }
             if let Some(ref cc) = *cc_dismiss_ref.borrow() {
                 cc.hide();
             }
@@ -101,12 +106,14 @@ impl BarWindow {
         let l_visible_ref = Rc::clone(&launcher);
         let q_visible_ref = Rc::clone(&quick_settings);
         let c_visible_ref = Rc::clone(&calendar);
+        let r_visible_cell = Rc::clone(&r_dismiss_cell);
         let cc_visible_ref = Rc::clone(&click_catcher);
 
         let update_cc_visibility = move || {
             let any_visible = l_visible_ref.window.is_visible() 
                 || q_visible_ref.window.is_visible() 
-                || c_visible_ref.window.is_visible();
+                || c_visible_ref.window.is_visible()
+                || r_visible_cell.borrow().as_ref().map(|r| r.is_menu_visible()).unwrap_or(false);
             if !any_visible {
                 cc_visible_ref.hide();
             }
@@ -133,12 +140,16 @@ impl BarWindow {
         let l_toggle = Rc::clone(&launcher);
         let q_toggle_l = Rc::clone(&quick_settings);
         let c_toggle_l = Rc::clone(&calendar);
+        let r_toggle_l = Rc::clone(&r_dismiss_cell);
         let cc_l = Rc::clone(&click_catcher);
 
         let left_section = LeftSection::new(move || {
             let is_open = l_toggle.window.is_visible();
             q_toggle_l.close();
             c_toggle_l.close();
+            if let Some(ref r) = *r_toggle_l.borrow() {
+                r.close();
+            }
             if is_open {
                 l_toggle.close();
                 cc_l.hide();
@@ -154,18 +165,25 @@ impl BarWindow {
         let q_toggle = Rc::clone(&quick_settings);
         let l_toggle_q = Rc::clone(&launcher);
         let c_toggle_q = Rc::clone(&calendar);
+        let r_toggle_q = Rc::clone(&r_dismiss_cell);
         let cc_q = Rc::clone(&click_catcher);
 
         let c_toggle = Rc::clone(&calendar);
         let l_toggle_c = Rc::clone(&launcher);
         let q_toggle_c = Rc::clone(&quick_settings);
+        let r_toggle_c = Rc::clone(&r_dismiss_cell);
         let cc_c = Rc::clone(&click_catcher);
 
+        let cc_show = Rc::clone(&click_catcher);
+        let cb_r2 = Rc::clone(&cb);
         let right_section = Rc::new(RightSection::new(
             move || {
                 let is_open = q_toggle.window.is_visible();
                 l_toggle_q.close();
                 c_toggle_q.close();
+                if let Some(ref r) = *r_toggle_q.borrow() {
+                    r.close();
+                }
                 if is_open {
                     q_toggle.close();
                     cc_q.hide();
@@ -178,6 +196,9 @@ impl BarWindow {
                 let is_open = c_toggle.window.is_visible();
                 l_toggle_c.close();
                 q_toggle_c.close();
+                if let Some(ref r) = *r_toggle_c.borrow() {
+                    r.close();
+                }
                 if is_open {
                     c_toggle.close();
                     cc_c.hide();
@@ -186,7 +207,14 @@ impl BarWindow {
                     c_toggle.toggle();
                 }
             },
+            move || {
+                cc_show.show();
+            },
+            move || {
+                cb_r2();
+            }
         ));
+        *r_dismiss_cell.borrow_mut() = Some(Rc::clone(&right_section));
 
         // NetworkManager live event listener via Unix pipe (epoll 0.0% CPU idle)
         let (net_read_fd, net_write_fd) = create_event_pipe();
@@ -199,6 +227,9 @@ impl BarWindow {
         glib::unix_fd_add_local(net_read_fd, glib::IOCondition::IN, move |fd, _| {
             drain_pipe(fd);
             right_net.update_network_state();
+            if qs_net.window.is_visible() && qs_net.stack.visible_child_name().as_deref() == Some("wifi") {
+                qs_net.wifi_page.sync_state();
+            }
             GridSection::async_refresh(Rc::clone(&qs_net.grid));
             glib::ControlFlow::Continue
         });
@@ -210,8 +241,13 @@ impl BarWindow {
         });
 
         let qs_bt = Rc::clone(&quick_settings);
+        let right_bt = Rc::clone(&right_section);
         glib::unix_fd_add_local(bt_read_fd, glib::IOCondition::IN, move |fd, _| {
             drain_pipe(fd);
+            right_bt.update_bluetooth_state();
+            if qs_bt.window.is_visible() && qs_bt.stack.visible_child_name().as_deref() == Some("bt") {
+                qs_bt.bt_page.sync_state();
+            }
             GridSection::async_refresh(Rc::clone(&qs_bt.grid));
             glib::ControlFlow::Continue
         });

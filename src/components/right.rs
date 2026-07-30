@@ -7,6 +7,37 @@ use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Label, Orientation};
 use gtk4::gdk;
 use gtk4::gdk_pixbuf::{Pixbuf, Colorspace};
+use gtk4_layer_shell::{Edge, Layer, LayerShell};
+use std::cell::RefCell;
+use std::rc::Rc;
+
+pub struct TrayPopup {
+    pub window: gtk4::Window,
+    pub container: GtkBox,
+}
+
+impl TrayPopup {
+    pub fn new() -> Self {
+        let window = gtk4::Window::new();
+        window.init_layer_shell();
+        window.set_layer(Layer::Top);
+        window.set_namespace("cos-tray-menu");
+
+        window.set_anchor(Edge::Bottom, true);
+        window.set_anchor(Edge::Left, true);
+        window.set_margin(Edge::Bottom, 20);
+        window.set_margin(Edge::Left, 24);
+
+        window.add_css_class("tray-popup-window");
+
+        let container = GtkBox::new(Orientation::Vertical, 2);
+        container.add_css_class("tray-popup-container");
+        container.set_size_request(160, -1);
+        window.set_child(Some(&container));
+
+        Self { window, container }
+    }
+}
 
 #[allow(dead_code)]
 pub struct RightSection {
@@ -16,13 +47,17 @@ pub struct RightSection {
     pub wifi_icon: Label,
     pub batt_icon: Label,
     pub bt_icon: Label,
+    pub tray_popup: Rc<RefCell<Option<Rc<TrayPopup>>>>,
+    pub active_id: Rc<RefCell<Option<String>>>,
 }
 
 impl RightSection {
-    pub fn new<FQS, FCal>(on_toggle_qs: FQS, on_toggle_cal: FCal) -> Self
+    pub fn new<FQS, FCal, FCS, FVC>(on_toggle_qs: FQS, on_toggle_cal: FCal, on_show_click_catcher: FCS, on_visible_changed: FVC) -> Self
     where
         FQS: Fn() + 'static,
         FCal: Fn() + 'static,
+        FCS: Fn() + 'static,
+        FVC: Fn() + 'static,
     {
         let container = GtkBox::new(Orientation::Horizontal, 6);
         container.add_css_class("right-section");
@@ -35,14 +70,26 @@ impl RightSection {
         container.append(&tray_box);
 
         let tray_box_clone = tray_box.clone();
+        let tray_popup = Rc::new(RefCell::new(None::<Rc<TrayPopup>>));
+        let tray_popup_c = Rc::clone(&tray_popup);
+        let active_id = Rc::new(RefCell::new(None::<String>));
+        let active_id_c = Rc::clone(&active_id);
+
+        let on_show_cc = Rc::new(on_show_click_catcher);
+        let on_visible_changed = Rc::new(on_visible_changed);
+
         TrayService::global().connect_change(move || {
             let tray_box_c = tray_box_clone.clone();
+            let pop_cell = Rc::clone(&tray_popup_c);
+            let active_id_cell = Rc::clone(&active_id_c);
+            let on_show_click_catcher_cb = Rc::clone(&on_show_cc);
+            let on_vis_changed = Rc::clone(&on_visible_changed);
+
             glib::idle_add_local(move || {
                 while let Some(child) = tray_box_c.first_child() {
                     let mut popover_child = child.first_child();
                     while let Some(c) = popover_child {
                         popover_child = c.next_sibling();
-                        // GtkPopover is a widget type, we can inspect its type name
                         if c.type_().name().contains("Popover") {
                             c.unparent();
                         }
@@ -51,43 +98,39 @@ impl RightSection {
                 }
 
                 let items = TrayService::global().get_items();
-                for item in items {
+                for item in &items {
                     if item.status == "Passive" {
                         continue;
                     }
 
                     let btn = Button::new();
-                    btn.add_css_class("icon-btn-circle");
+                    btn.add_css_class("tray-item-btn");
                     btn.set_tooltip_text(Some(&item.title));
-
-                    let bubble = GtkBox::new(Orientation::Horizontal, 0);
-                    bubble.add_css_class("icon-bubble");
-                    bubble.set_halign(gtk4::Align::Center);
-                    bubble.set_valign(gtk4::Align::Center);
-                    bubble.set_size_request(36, 36);
+                    btn.set_valign(gtk4::Align::Center);
+                    btn.set_size_request(32, 32);
 
                     let mut icon_widget = None::<gtk4::Widget>;
 
                     if let Some(ref pixmap) = item.pixmap {
                         if let Some(texture) = Self::texture_from_pixmap(pixmap) {
                             let img = gtk4::Image::from_paintable(Some(&texture));
-                            img.set_pixel_size(18);
+                            img.set_pixel_size(15);
                             img.set_halign(gtk4::Align::Center);
                             img.set_valign(gtk4::Align::Center);
-                            img.set_hexpand(true);
-                            img.set_vexpand(true);
                             icon_widget = Some(img.upcast::<gtk4::Widget>());
                         }
                     }
 
                     if icon_widget.is_none() {
                         if let Some(ref icon_name) = item.icon_name {
-                            let img = gtk4::Image::from_icon_name(icon_name);
-                            img.set_pixel_size(18);
+                            let img = if icon_name.starts_with('/') {
+                                gtk4::Image::from_file(icon_name)
+                            } else {
+                                gtk4::Image::from_icon_name(icon_name)
+                            };
+                            img.set_pixel_size(15);
                             img.set_halign(gtk4::Align::Center);
                             img.set_valign(gtk4::Align::Center);
-                            img.set_hexpand(true);
-                            img.set_vexpand(true);
                             icon_widget = Some(img.upcast::<gtk4::Widget>());
                         }
                     }
@@ -95,49 +138,86 @@ impl RightSection {
                     if icon_widget.is_none() {
                         let label = Label::new(Some("\u{e5c3}"));
                         label.add_css_class("ms-icon");
-                        label.add_css_class("ms-icon-sm");
+                        label.add_css_class("tray-fallback-icon");
                         label.set_halign(gtk4::Align::Center);
                         label.set_valign(gtk4::Align::Center);
-                        label.set_hexpand(true);
-                        label.set_vexpand(true);
                         icon_widget = Some(label.upcast::<gtk4::Widget>());
                     }
 
                     if let Some(widget) = icon_widget {
-                        bubble.append(&widget);
+                        btn.set_child(Some(&widget));
                     }
-
-                    btn.set_child(Some(&bubble));
 
                     let id_left = item.identifier.clone();
                     let has_menu = item.menu_path.is_some();
-                    let popover = gtk4::Popover::new();
-                    popover.set_parent(&btn);
-                    popover.set_has_arrow(true);
-                    popover.add_css_class("qs-popup-popover");
+                    let pop_left = Rc::clone(&pop_cell);
+                    let active_id_left = Rc::clone(&active_id_cell);
+                    let cc_left = Rc::clone(&on_show_click_catcher_cb);
+                    let btn_left = btn.clone();
+                    let vis_changed_left = Rc::clone(&on_vis_changed);
 
-                    let popover_left = popover.clone();
                     btn.connect_clicked(move |_| {
                         if has_menu {
-                            let pop = popover_left.clone();
+                            let pop_inner = {
+                                let mut p_borrow = pop_left.borrow_mut();
+                                if p_borrow.is_none() {
+                                    let new_pop = Rc::new(TrayPopup::new());
+                                    let vis_changed = Rc::clone(&vis_changed_left);
+                                    new_pop.window.connect_visible_notify(move |_| {
+                                        vis_changed();
+                                    });
+                                    *p_borrow = Some(new_pop);
+                                }
+                                p_borrow.as_ref().unwrap().clone()
+                            };
+
+                            let is_open = pop_inner.window.is_visible();
+                            let is_same = active_id_left.borrow().as_ref() == Some(&id_left);
+                            if is_open && is_same {
+                                pop_inner.window.set_visible(false);
+                                *active_id_left.borrow_mut() = None;
+                                return;
+                            }
+
+                            let cc_inner = Rc::clone(&cc_left);
                             let id = id_left.clone();
+                            let id_click = id_left.clone();
                             let id_for_get = id.clone();
+                            let btn_c = btn_left.clone();
+                            let active_id_inner = Rc::clone(&active_id_left);
+
                             TrayService::global().get_menu(&id_for_get, move |entries| {
                                 if entries.is_empty() {
                                     return;
                                 }
-                                let menu_box = GtkBox::new(Orientation::Vertical, 2);
-                                menu_box.add_css_class("qs-popup-container");
-                                menu_box.set_margin_start(4);
-                                menu_box.set_margin_end(4);
-                                menu_box.set_margin_top(4);
-                                menu_box.set_margin_bottom(4);
 
-                                Self::append_menu_entries(&menu_box, entries, &id, &pop, 0);
+                                while let Some(child) = pop_inner.container.first_child() {
+                                    pop_inner.container.remove(&child);
+                                }
 
+                                Self::append_menu_entries_win(&pop_inner.container, entries, &id, &pop_inner, 0);
+
+                                let active_id_inner_2 = Rc::clone(&active_id_inner);
+                                let id_click_2 = id_click.clone();
                                 glib::idle_add_local(move || {
-                                    pop.set_child(Some(&menu_box));
-                                    pop.popup();
+                                    let display = gdk::Display::default().unwrap();
+                                    let monitor = display.monitors().item(0).unwrap().downcast::<gdk::Monitor>().unwrap();
+                                    let monitor_width = monitor.geometry().width() as f64;
+
+                                    let root = btn_c.root();
+                                    let (x, _) = if let Some(ref r) = root {
+                                        btn_c.translate_coordinates(r, 0.0, 0.0).unwrap_or((0.0, 0.0))
+                                    } else {
+                                        (0.0, 0.0)
+                                    };
+                                    let margin = (x as i32).min((monitor_width - 200.0) as i32);
+                                    let margin = margin.max(24);
+
+                                    pop_inner.window.set_margin(Edge::Left, margin);
+                                    cc_inner();
+                                    pop_inner.window.set_visible(true);
+                                    pop_inner.window.present();
+                                    *active_id_inner_2.borrow_mut() = Some(id_click_2.clone());
                                     glib::ControlFlow::Break
                                 });
                             });
@@ -147,31 +227,77 @@ impl RightSection {
                     });
 
                     let id_right = item.identifier.clone();
-                    let popover_right = popover.clone();
+                    let pop_right = Rc::clone(&pop_cell);
+                    let active_id_right = Rc::clone(&active_id_cell);
+                    let cc_right = Rc::clone(&on_show_click_catcher_cb);
+                    let btn_right = btn.clone();
+                    let vis_changed_right = Rc::clone(&on_vis_changed);
+
                     let gesture = gtk4::GestureClick::new();
                     gesture.set_button(gdk::BUTTON_SECONDARY);
                     gesture.connect_pressed(move |g, _, _, _| {
                         g.set_state(gtk4::EventSequenceState::Claimed);
-                        let pop = popover_right.clone();
+                        let pop_inner = {
+                            let mut p_borrow = pop_right.borrow_mut();
+                            if p_borrow.is_none() {
+                                let new_pop = Rc::new(TrayPopup::new());
+                                let vis_changed = Rc::clone(&vis_changed_right);
+                                new_pop.window.connect_visible_notify(move |_| {
+                                    vis_changed();
+                                });
+                                *p_borrow = Some(new_pop);
+                            }
+                            p_borrow.as_ref().unwrap().clone()
+                        };
+
+                        let is_open = pop_inner.window.is_visible();
+                        let is_same = active_id_right.borrow().as_ref() == Some(&id_right);
+                        if is_open && is_same {
+                            pop_inner.window.set_visible(false);
+                            *active_id_right.borrow_mut() = None;
+                            return;
+                        }
+
+                        let cc_inner = Rc::clone(&cc_right);
                         let id = id_right.clone();
+                        let id_click = id_right.clone();
                         let id_for_get = id.clone();
+                        let btn_c = btn_right.clone();
+                        let active_id_inner = Rc::clone(&active_id_right);
+
                         TrayService::global().get_menu(&id_for_get, move |entries| {
                             if entries.is_empty() {
                                 return;
                             }
-                            let menu_box = GtkBox::new(Orientation::Vertical, 2);
-                            menu_box.add_css_class("qs-popup-container");
-                            menu_box.set_margin_start(4);
-                            menu_box.set_margin_end(4);
-                            menu_box.set_margin_top(4);
-                            menu_box.set_margin_bottom(4);
 
-                            Self::append_menu_entries(&menu_box, entries, &id, &pop, 0);
+                            while let Some(child) = pop_inner.container.first_child() {
+                                pop_inner.container.remove(&child);
+                            }
 
+                            Self::append_menu_entries_win(&pop_inner.container, entries, &id, &pop_inner, 0);
+
+                            let active_id_inner_2 = Rc::clone(&active_id_inner);
+                            let id_click_2 = id_click.clone();
                             glib::idle_add_local(move || {
-                                pop.set_child(Some(&menu_box));
-                                pop.popup();
-                                glib::ControlFlow::Break
+                                let display = gdk::Display::default().unwrap();
+                                let monitor = display.monitors().item(0).unwrap().downcast::<gdk::Monitor>().unwrap();
+                                let monitor_width = monitor.geometry().width() as f64;
+
+                                let root = btn_c.root();
+                                let (x, _) = if let Some(ref r) = root {
+                                    btn_c.translate_coordinates(r, 0.0, 0.0).unwrap_or((0.0, 0.0))
+                                } else {
+                                    (0.0, 0.0)
+                                };
+                                let margin = (x as i32).min((monitor_width - 200.0) as i32);
+                                let margin = margin.max(24);
+
+                                pop_inner.window.set_margin(Edge::Left, margin);
+                                cc_inner();
+                                pop_inner.window.set_visible(true);
+                                pop_inner.window.present();
+                                 *active_id_inner_2.borrow_mut() = Some(id_click_2.clone());
+                                 glib::ControlFlow::Break
                             });
                         });
                     });
@@ -179,32 +305,16 @@ impl RightSection {
 
                     tray_box_c.append(&btn);
                 }
+
+                let active_items_count = items.iter().filter(|item| item.status != "Passive").count();
+                tray_box_c.set_visible(active_items_count > 0);
+
                 glib::ControlFlow::Break
             });
         });
 
-        // 1. Stylus Button
-        let stylus_btn = Button::new();
-        stylus_btn.add_css_class("icon-btn-circle");
-        stylus_btn.set_tooltip_text(Some("Stylus Tools"));
-        stylus_btn.set_valign(gtk4::Align::Center);
+        let tray_popup = tray_popup.clone();
 
-        let stylus_wrap = GtkBox::new(Orientation::Horizontal, 0);
-        stylus_wrap.add_css_class("icon-bubble");
-        stylus_wrap.set_halign(gtk4::Align::Center);
-        stylus_wrap.set_valign(gtk4::Align::Center);
-        stylus_wrap.set_size_request(36, 36);
-
-        let stylus_icon = Label::new(Some("\u{f604}"));
-        stylus_icon.add_css_class("ms-icon");
-        stylus_icon.add_css_class("ms-icon-sm");
-        stylus_icon.set_halign(gtk4::Align::Center);
-        stylus_icon.set_valign(gtk4::Align::Center);
-        stylus_icon.set_hexpand(true);
-        stylus_icon.set_vexpand(true);
-        stylus_wrap.append(&stylus_icon);
-        stylus_btn.set_child(Some(&stylus_wrap));
-        container.append(&stylus_btn);
 
         // 2. ChromeOS Connected Split-Pill Container (2px gap)
         let pill_group = GtkBox::new(Orientation::Horizontal, 2);
@@ -343,7 +453,20 @@ impl RightSection {
             wifi_icon,
             batt_icon,
             bt_icon,
+            tray_popup,
+            active_id,
         }
+    }
+
+    pub fn close(&self) {
+        if let Some(ref pop) = *self.tray_popup.borrow() {
+            pop.window.set_visible(false);
+        }
+        *self.active_id.borrow_mut() = None;
+    }
+
+    pub fn is_menu_visible(&self) -> bool {
+        self.tray_popup.borrow().as_ref().map(|pop| pop.window.is_visible()).unwrap_or(false)
     }
 
     /// Refresh main bar shelf Wi-Fi icon dynamically on D-Bus event
@@ -352,6 +475,11 @@ impl RightSection {
         if self.wifi_icon.text() != code {
             self.wifi_icon.set_text(code);
         }
+    }
+
+    /// Refresh main bar shelf Bluetooth icon dynamically on bluetoothctl event
+    pub fn update_bluetooth_state(&self) {
+        Self::update_bt_icon(&self.bt_icon);
     }
 
     /// Update Bluetooth icon visibility and glyph based on connection state
@@ -464,11 +592,11 @@ impl RightSection {
         Some(gdk::Texture::for_pixbuf(&pixbuf))
     }
 
-    fn append_menu_entries(
+    fn append_menu_entries_win(
         menu_box: &GtkBox,
         entries: Vec<crate::services::tray::TrayMenuEntry>,
         id: &str,
-        pop: &gtk4::Popover,
+        pop: &Rc<TrayPopup>,
         indent: i32,
     ) {
         for entry in entries {
@@ -482,6 +610,7 @@ impl RightSection {
             } else if !entry.label.trim().is_empty() {
                 let m_btn = Button::new();
                 m_btn.add_css_class("qs-list-item-btn");
+                m_btn.set_sensitive(entry.enabled);
                 if indent > 0 {
                     m_btn.set_margin_start(indent);
                 }
@@ -492,20 +621,20 @@ impl RightSection {
 
                 let id_click = id.to_string();
                 let menu_id = entry.menu_id;
-                let pop_close = pop.clone();
+                let pop_close = Rc::clone(pop);
                 let has_children = !entry.children.is_empty();
 
                 m_btn.connect_clicked(move |_| {
                     if !has_children {
                         TrayService::global().send_menu_event(&id_click, menu_id, "clicked");
-                        pop_close.popdown();
+                        pop_close.window.set_visible(false);
                     }
                 });
 
                 menu_box.append(&m_btn);
 
                 if !entry.children.is_empty() {
-                    Self::append_menu_entries(menu_box, entry.children, id, pop, indent + 16);
+                    Self::append_menu_entries_win(menu_box, entry.children, id, pop, indent + 16);
                 }
             }
         }

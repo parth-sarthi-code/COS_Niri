@@ -19,9 +19,9 @@ impl PowerProfile {
 
     pub fn icon_code(&self) -> &'static str {
         match self {
-            Self::Performance => "\u{e80e}", // speed gauge (GNOME style)
-            Self::Balanced => "\u{e429}",    // dial / sliders (GNOME style)
-            Self::PowerSaver => "\u{e80d}",  // leaf (GNOME style)
+            Self::Performance => "\u{ea0b}",
+            Self::Balanced => "\u{fff37}",
+            Self::PowerSaver => "\u{ec1a}",
         }
     }
 

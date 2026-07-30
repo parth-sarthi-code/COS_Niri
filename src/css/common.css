@@ -31,7 +31,8 @@ button.dock-item,
 button.icon-btn-circle,
 button.launcher-btn,
 button.ws-pill,
-button.qs-pill {
+button.qs-pill,
+button.tray-item-btn {
     background: none;
     border: none;
     padding: 0;

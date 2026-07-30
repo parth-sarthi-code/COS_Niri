@@ -19,12 +19,19 @@ thread_local! {
 }
 
 fn main() {
-    // Generate/initialize Material You theme colors from wallpaper
+    // Generate/initialize Material You theme colors from wallpaper using matugen
     services::theme::ThemeService::initialize();
 
-    // Set up signal handler (SIGUSR1 - 10) for on-demand theme CSS reloads
+    // Set up signal handler (SIGUSR1 - 10) for on-demand theme regeneration
     glib::unix_signal_add_local(10, move || {
-        eprintln!("[theme] SIGUSR1 received, hot-reloading theme CSS...");
+        eprintln!("[theme] SIGUSR1 received, regenerating theme colors...");
+        services::theme::ThemeService::regenerate();
+        glib::ControlFlow::Continue
+    });
+
+    // Set up signal handler (SIGUSR2 - 12) for dynamic style hot-reloads
+    glib::unix_signal_add_local(12, move || {
+        eprintln!("[theme] SIGUSR2 received, hot-reloading theme CSS...");
         load_css();
         glib::ControlFlow::Continue
     });

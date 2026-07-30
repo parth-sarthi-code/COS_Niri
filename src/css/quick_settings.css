@@ -348,3 +348,46 @@ separator.shelf-sep {
     min-height: 1px;
     margin: 4px 8px;
 }
+
+/* === SYSTEM TRAY CUSTOM WINDOW POPUP (ChromeOS Glassmorphism) === */
+window.tray-popup-window {
+    background-color: transparent;
+}
+
+box.tray-popup-container {
+    background-color: @surface;
+    border-radius: 16px;
+    padding: 6px;
+    border: 1px solid @outline;
+    box-shadow: none;
+    font-family: "Roboto", sans-serif;
+    color: @text-primary;
+}
+
+box.tray-popup-container button.qs-list-item-btn {
+    background-image: none;
+    background: none;
+    border: none;
+    border-radius: 10px;
+    padding: 6px 12px;
+    min-height: 28px;
+    box-shadow: none;
+    color: @text-primary;
+    transition: background-color 120ms ease;
+}
+
+box.tray-popup-container button.qs-list-item-btn:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+box.tray-popup-container button.qs-list-item-btn label {
+    color: @text-primary;
+    font-size: 13px;
+}
+
+/* Custom separator inside tray-popup-container */
+box.tray-popup-container separator.shelf-sep {
+    background-color: rgba(255, 255, 255, 0.08);
+    min-height: 1px;
+    margin: 4px 6px;
+}

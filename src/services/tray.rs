@@ -353,25 +353,28 @@ impl TrayService {
         );
     }
 
-    fn parse_properties_result(&self, result: &Variant) -> Option<HashMap<String, Variant>> {
-        let inner = result.child_value(0);
+    fn parse_dbus_dict(&self, dict_variant: &Variant) -> HashMap<String, Variant> {
         let mut map = HashMap::new();
-
-        for i in 0..inner.n_children() {
-            let entry = inner.child_value(i);
+        for i in 0..dict_variant.n_children() {
+            let entry = dict_variant.child_value(i);
             if entry.n_children() >= 2 {
                 if let Some(key) = entry.child_value(0).str() {
-                    let value = entry.child_value(1);
-                    let actual_value = if value.type_().is_variant() {
-                        value.child_value(0)
+                    let val = entry.child_value(1);
+                    let actual_val = if val.type_().is_variant() {
+                        val.child_value(0)
                     } else {
-                        value
+                        val
                     };
-                    map.insert(key.to_string(), actual_value);
+                    map.insert(key.to_string(), actual_val);
                 }
             }
         }
+        map
+    }
 
+    fn parse_properties_result(&self, result: &Variant) -> Option<HashMap<String, Variant>> {
+        let inner = result.child_value(0);
+        let map = self.parse_dbus_dict(&inner);
         if map.is_empty() { None } else { Some(map) }
     }
 
@@ -636,22 +639,7 @@ impl TrayService {
     }
 
     fn parse_menu_properties(&self, properties: &Variant) -> HashMap<String, Variant> {
-        let mut map = HashMap::new();
-        for i in 0..properties.n_children() {
-            let entry = properties.child_value(i);
-            if entry.n_children() >= 2 {
-                if let Some(key) = entry.child_value(0).str() {
-                    let val = entry.child_value(1);
-                    let actual_val = if val.type_().is_variant() {
-                        val.child_value(0)
-                    } else {
-                        val
-                    };
-                    map.insert(key.to_string(), actual_val);
-                }
-            }
-        }
-        map
+        self.parse_dbus_dict(properties)
     }
 
     pub fn send_menu_event(&self, identifier: &str, menu_id: i32, event: &str) {

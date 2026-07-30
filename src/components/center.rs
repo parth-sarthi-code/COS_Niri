@@ -139,7 +139,11 @@ impl CenterSection {
                 .map(|e| e.exec.clone())
                 .unwrap_or_else(|| Self::probe_first_valid_binary(&config.fallback_candidates));
 
-            let (button, dot) = Self::create_dock_button_nodes(&config.fixed_icon, &config.display_title);
+            let icon_to_use = found_entry
+                .map(|e| e.icon.clone())
+                .unwrap_or_else(|| config.fixed_icon.clone());
+
+            let (button, dot) = Self::create_dock_button_nodes(&icon_to_use, &config.display_title);
             let focus_id_cell = Rc::new(RefCell::new(None));
 
             let focus_cell_clone = Rc::clone(&focus_id_cell);

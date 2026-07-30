@@ -231,3 +231,38 @@ label.qs-icon {
     color: #ffffff;
     font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
+
+/* System Tray Unified Common Container */
+box.tray-container {
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 0 4px;
+    min-height: 36px;
+    margin-right: 6px;
+    transition: all 180ms ease;
+}
+
+button.tray-item-btn {
+    background-color: transparent;
+    border: none;
+    border-radius: 50%;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    margin: 2px 1px;
+    transition: background-color 150ms ease;
+    box-shadow: none;
+}
+
+button.tray-item-btn:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+button.tray-item-btn:active {
+    background-color: rgba(255, 255, 255, 0.20);
+}
+
+label.tray-fallback-icon {
+    font-size: 15px;
+}

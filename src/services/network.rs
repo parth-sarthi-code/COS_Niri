@@ -233,7 +233,7 @@ impl NetworkService {
         std::thread::spawn(move || {
             if let Ok(conn) = gio::bus_get_sync(gio::BusType::System, gio::Cancellable::NONE) {
                 let _sub_id = conn.signal_subscribe(
-                    Some("org.freedesktop.NetworkManager"),
+                    None,
                     Some("org.freedesktop.DBus.Properties"),
                     Some("PropertiesChanged"),
                     None,

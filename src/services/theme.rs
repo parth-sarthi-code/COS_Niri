@@ -1,7 +1,31 @@
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use image::GenericImageView;
+use std::process::Command;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct MatugenColor {
+    default: String,
+}
+
+#[derive(Deserialize)]
+struct MatugenColors {
+    primary: MatugenColor,
+    on_primary: MatugenColor,
+    primary_container: MatugenColor,
+    on_primary_container: MatugenColor,
+    surface: MatugenColor,
+    surface_container: MatugenColor,
+    outline: MatugenColor,
+    on_surface: MatugenColor,
+    on_surface_variant: MatugenColor,
+}
+
+#[derive(Deserialize)]
+struct MatugenOutput {
+    colors: MatugenColors,
+}
 
 pub struct ThemeService;
 
@@ -22,18 +46,16 @@ impl ThemeService {
             Self::write_fallback_theme();
         }
 
+        Self::regenerate();
+    }
+
+    pub fn regenerate() {
         std::thread::spawn(|| {
-            if let Some(color) = Self::extract_wallpaper_color() {
-                Self::generate_theme(color);
-                unsafe {
-                    libc::raise(libc::SIGUSR1);
-                }
-            }
+            Self::generate_theme_from_wallpaper();
         });
     }
 
-    fn extract_wallpaper_color() -> Option<(u8, u8, u8)> {
-        // Retrieve wallpaper path dynamically (env var first, then default user config directory)
+    fn generate_theme_from_wallpaper() {
         let path_str = std::env::var("WALLPAPER").unwrap_or_else(|_| {
             dirs::home_dir()
                 .unwrap_or_default()
@@ -42,114 +64,67 @@ impl ThemeService {
                 .to_string()
         });
 
-        let path = Path::new(&path_str);
-        if !path.exists() {
-            return None;
+        if !Path::new(&path_str).exists() {
+            return;
         }
 
-        let file = File::open(path).ok()?;
-        let reader = std::io::BufReader::new(file);
-        let img = image::load(reader, image::ImageFormat::Jpeg).ok()?;
-        let (width, height) = img.dimensions();
+        let output = match Command::new("matugen")
+            .args(["-j", "hex", "image", &path_str])
+            .output()
+        {
+            Ok(o) => o,
+            Err(_) => return,
+        };
 
-        // Sample a ~64x64 grid of pixels directly to avoid downsampling allocations
-        let step_x = (width / 64).max(1);
-        let step_y = (height / 64).max(1);
-
-        #[derive(Clone, Copy, Default)]
-        struct ColorBin {
-            r_sum: u64,
-            g_sum: u64,
-            b_sum: u64,
-            count: u64,
+        if !output.status.success() {
+            return;
         }
 
-        // Stack-allocated color bins (zero heap allocations, O(1) space complexity)
-        let mut bins = [ColorBin::default(); 16];
-
-        for y in (0..height).step_by(step_y as usize) {
-            for x in (0..width).step_by(step_x as usize) {
-                if x >= width || y >= height {
-                    continue;
-                }
-                let pixel = img.get_pixel(x, y);
-                let r = pixel[0];
-                let g = pixel[1];
-                let b = pixel[2];
-
-                let (h, s, l) = rgb_to_hsl(r, g, b);
-
-                // Filter out neutral colors (greys, pure black, pure white)
-                if s > 15.0 && l > 10.0 && l < 90.0 {
-                    let bin_idx = ((h / 22.5) as usize) % 16;
-                    let bin = &mut bins[bin_idx];
-                    bin.r_sum += r as u64;
-                    bin.g_sum += g as u64;
-                    bin.b_sum += b as u64;
-                    bin.count += 1;
-                }
+        let json_str = String::from_utf8_lossy(&output.stdout);
+        let matugen_data: MatugenOutput = match serde_json::from_str(&json_str) {
+            Ok(data) => data,
+            Err(e) => {
+                eprintln!("[theme] Failed to parse matugen output: {}", e);
+                return;
             }
-        }
+        };
 
-        // Find the bin with the most pixels
-        let mut best_bin = 0;
-        let mut max_count = 0;
-        for i in 0..16 {
-            if bins[i].count > max_count {
-                max_count = bins[i].count;
-                best_bin = i;
-            }
-        }
+        let colors = &matugen_data.colors;
 
-        if max_count == 0 {
-            return None;
-        }
+        let primary = &colors.primary.default;
+        let on_primary = &colors.on_primary.default;
+        let primary_container = hex_to_rgba(&colors.primary_container.default, 0.14);
+        let on_primary_container = &colors.on_primary_container.default;
+        let surface = hex_to_rgba(&colors.surface.default, 0.72);
+        let surface_variant = hex_to_rgba(&colors.surface_container.default, 0.07);
+        let outline = hex_to_rgba(&colors.outline.default, 0.10);
+        let text_primary = &colors.on_surface.default;
+        let text_secondary = &colors.on_surface_variant.default;
+        let text_muted = &colors.outline.default;
 
-        let bin = &bins[best_bin];
-        Some((
-            (bin.r_sum / bin.count) as u8,
-            (bin.g_sum / bin.count) as u8,
-            (bin.b_sum / bin.count) as u8,
-        ))
-    }
-
-    fn generate_theme(color: (u8, u8, u8)) {
-        let (h, s, _l) = rgb_to_hsl(color.0, color.1, color.2);
-        
-        // Generate Material Design 3 HSL variations
-        let primary_hsl = (h, s.max(55.0), 80.0);
-        let on_primary_hsl = (h, 40.0, 12.0);
-        let primary_container_hsl = (h, s.max(35.0).min(50.0), 20.0);
-        let on_primary_container_hsl = (h, 45.0, 85.0);
-        let surface_hsl = (h, 12.0, 8.0);
-        
-        let primary = hsl_to_rgb(primary_hsl.0, primary_hsl.1, primary_hsl.2);
-        let on_primary = hsl_to_rgb(on_primary_hsl.0, on_primary_hsl.1, on_primary_hsl.2);
-        let primary_container = hsl_to_rgb(primary_container_hsl.0, primary_container_hsl.1, primary_container_hsl.2);
-        let on_primary_container = hsl_to_rgb(on_primary_container_hsl.0, on_primary_container_hsl.1, on_primary_container_hsl.2);
-        let surface = hsl_to_rgb(surface_hsl.0, surface_hsl.1, surface_hsl.2);
-        
         let css = format!(
-            "/* Generated theme - do not modify */\n\
-             @define-color primary rgb({}, {}, {});\n\
-             @define-color on-primary rgb({}, {}, {});\n\
-             @define-color primary-container rgba({}, {}, {}, 0.14);\n\
-             @define-color on-primary-container rgb({}, {}, {});\n\
-             @define-color surface rgba({}, {}, {}, 0.72);\n\
-             @define-color surface-opaque rgba({}, {}, {}, 0.90);\n\
-             @define-color surface-variant rgba(255, 255, 255, 0.07);\n\
-             @define-color outline rgba(255, 255, 255, 0.10);\n\
-             @define-color text-primary #ffffff;\n\
-             @define-color text-secondary #c4c6d0;\n\
-             @define-color text-muted #938f99;\n",
-            primary.0, primary.1, primary.2,
-            on_primary.0, on_primary.1, on_primary.2,
-            primary_container.0, primary_container.1, primary_container.2,
-            on_primary_container.0, on_primary_container.1, on_primary_container.2,
-            surface.0, surface.1, surface.2,
-            surface.0, surface.1, surface.2,
+            "@define-color primary {};\n\
+             @define-color on-primary {};\n\
+             @define-color primary-container {};\n\
+             @define-color on-primary-container {};\n\
+             @define-color surface {};\n\
+             @define-color surface-variant {};\n\
+             @define-color outline {};\n\
+             @define-color text-primary {};\n\
+             @define-color text-secondary {};\n\
+             @define-color text-muted {};\n",
+            primary,
+            on_primary,
+            primary_container,
+            on_primary_container,
+            surface,
+            surface_variant,
+            outline,
+            text_primary,
+            text_secondary,
+            text_muted
         );
-        
+
         if let Ok(mut file) = File::create(Self::get_colors_css_path()) {
             let _ = file.write_all(css.as_bytes());
         }
@@ -158,14 +133,13 @@ impl ThemeService {
         let niri_kdl = format!(
             "layout {{\n\
              \tfocus-ring {{\n\
-             \t\tactive-color \"#{:02x}{:02x}{:02x}\"\n\
+             \t\tactive-color \"{}\"\n\
              \t}}\n\
              \tborder {{\n\
-             \t\tactive-color \"#{:02x}{:02x}{:02x}\"\n\
+             \t\tactive-color \"{}\"\n\
              \t}}\n\
              }}",
-            primary.0, primary.1, primary.2,
-            primary.0, primary.1, primary.2
+            primary, primary
         );
         let niri_kdl_path = dirs::home_dir()
             .unwrap_or_default()
@@ -175,20 +149,18 @@ impl ThemeService {
         }
 
         // Generate Fuzzel color file
+        let s_hex = strip_hex(&colors.surface.default);
+        let p_hex = strip_hex(primary);
         let fuzzel_ini = format!(
             "[colors]\n\
-             background={:02x}{:02x}{:02x}e6\n\
+             background={}e6\n\
              text=ffffffff\n\
-             match={:02x}{:02x}{:02x}ff\n\
-             selection={:02x}{:02x}{:02x}4d\n\
+             match={}ff\n\
+             selection={}4d\n\
              selection-text=ffffffff\n\
-             selection-match={:02x}{:02x}{:02x}ff\n\
-             border={:02x}{:02x}{:02x}ff\n",
-            surface.0, surface.1, surface.2,
-            primary.0, primary.1, primary.2,
-            primary.0, primary.1, primary.2,
-            primary.0, primary.1, primary.2,
-            primary.0, primary.1, primary.2,
+             selection-match={}ff\n\
+             border={}ff\n",
+            s_hex, p_hex, p_hex, p_hex, p_hex
         );
         let fuzzel_path = dirs::home_dir()
             .unwrap_or_default()
@@ -196,22 +168,23 @@ impl ThemeService {
         if let Ok(mut file) = File::create(fuzzel_path) {
             let _ = file.write_all(fuzzel_ini.as_bytes());
         }
+
+        unsafe {
+            libc::raise(libc::SIGUSR2);
+        }
     }
 
     fn write_fallback_theme() {
-        let css = "/* Fallback theme */\n\
-                   @define-color primary #b4c5ff;\n\
+        let css = "@define-color primary #b4c5ff;\n\
                    @define-color on-primary #1a1b38;\n\
                    @define-color primary-container rgba(180, 197, 255, 0.14);\n\
                    @define-color on-primary-container #d0bcff;\n\
                    @define-color surface rgba(18, 19, 26, 0.72);\n\
-                   @define-color surface-opaque rgba(18, 19, 26, 0.90);\n\
                    @define-color surface-variant rgba(255, 255, 255, 0.07);\n\
                    @define-color outline rgba(255, 255, 255, 0.10);\n\
                    @define-color text-primary #ffffff;\n\
                    @define-color text-secondary #c4c6d0;\n\
                    @define-color text-muted #938f99;\n";
-        
         if let Ok(mut file) = File::create(Self::get_colors_css_path()) {
             let _ = file.write_all(css.as_bytes());
         }
@@ -250,72 +223,20 @@ impl ThemeService {
     }
 }
 
-fn rgb_to_hsl(r: u8, g: u8, b: u8) -> (f32, f32, f32) {
-    let r = r as f32 / 255.0;
-    let g = g as f32 / 255.0;
-    let b = b as f32 / 255.0;
-
-    let min = r.min(g).min(b);
-    let max = r.max(g).max(b);
-    let delta = max - min;
-
-    let mut h = 0.0;
-    let mut s = 0.0;
-    let l = (max + min) / 2.0;
-
-    if delta > 0.0 {
-        s = if l < 0.5 {
-            delta / (max + min)
-        } else {
-            delta / (2.0 - max - min)
-        };
-
-        if max == r {
-            h = (g - b) / delta + (if g < b { 6.0 } else { 0.0 });
-        } else if max == g {
-            h = (b - r) / delta + 2.0;
-        } else if max == b {
-            h = (r - g) / delta + 4.0;
+fn hex_to_rgba(hex: &str, alpha: f32) -> String {
+    let hex = hex.trim_start_matches('#');
+    if hex.len() == 6 {
+        if let (Ok(r), Ok(g), Ok(b)) = (
+            u8::from_str_radix(&hex[0..2], 16),
+            u8::from_str_radix(&hex[2..4], 16),
+            u8::from_str_radix(&hex[4..6], 16),
+        ) {
+            return format!("rgba({}, {}, {}, {})", r, g, b, alpha);
         }
-        h /= 6.0;
     }
-
-    (h * 360.0, s * 100.0, l * 100.0)
+    format!("rgba(18, 19, 26, {})", alpha)
 }
 
-fn hsl_to_rgb(h: f32, s: f32, l: f32) -> (u8, u8, u8) {
-    let h = h / 360.0;
-    let s = s / 100.0;
-    let l = l / 100.0;
-
-    let (r, g, b) = if s == 0.0 {
-        (l, l, l)
-    } else {
-        let q = if l < 0.5 {
-            l * (1.0 + s)
-        } else {
-            l + s - l * s
-        };
-        let p = 2.0 * l - q;
-        (
-            hue_to_rgb(p, q, h + 1.0 / 3.0),
-            hue_to_rgb(p, q, h),
-            hue_to_rgb(p, q, h - 1.0 / 3.0),
-        )
-    };
-
-    (
-        (r * 255.0).round() as u8,
-        (g * 255.0).round() as u8,
-        (b * 255.0).round() as u8,
-    )
-}
-
-fn hue_to_rgb(p: f32, q: f32, mut t: f32) -> f32 {
-    if t < 0.0 { t += 1.0; }
-    if t > 1.0 { t -= 1.0; }
-    if t < 1.0 / 6.0 { return p + (q - p) * 6.0 * t; }
-    if t < 1.0 / 2.0 { return q; }
-    if t < 2.0 / 3.0 { return p + (q - p) * (2.0 / 3.0 - t) * 6.0; }
-    p
+fn strip_hex(hex: &str) -> &str {
+    hex.trim_start_matches('#')
 }

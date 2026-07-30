@@ -29,6 +29,7 @@ pub struct QuickSettingsPopup {
     pub batt_label: Label,
     #[allow(dead_code)]
     pub wifi_page: Rc<WifiPage>,
+    pub bt_page: Rc<BtPage>,
 }
 
 impl QuickSettingsPopup {
@@ -66,9 +67,9 @@ impl QuickSettingsPopup {
         stack.add_named(&wifi_page.container, Some("wifi"));
 
         let st_back2 = Rc::clone(&stack_rc);
-        let bt_page = BtPage::new(move || {
+        let bt_page = Rc::new(BtPage::new(move || {
             st_back2.borrow().set_visible_child_name("main");
-        });
+        }));
         stack.add_named(&bt_page.container, Some("bt"));
 
         let st_back3 = Rc::clone(&stack_rc);
@@ -102,8 +103,12 @@ impl QuickSettingsPopup {
                 wp_open.sync_state();
                 st_wifi.borrow().set_visible_child_name("wifi");
             },
-            move || {
-                st_bt.borrow().set_visible_child_name("bt");
+            {
+                let bt_open = Rc::clone(&bt_page);
+                move || {
+                    bt_open.sync_state();
+                    st_bt.borrow().set_visible_child_name("bt");
+                }
             },
         ));
         main_view.append(&grid.container);
@@ -206,6 +211,7 @@ impl QuickSettingsPopup {
             audio_page,
             batt_label: batt_lbl,
             wifi_page,
+            bt_page,
         }
     }
 
