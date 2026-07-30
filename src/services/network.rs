@@ -237,7 +237,7 @@ impl NetworkService {
                     Some("org.freedesktop.DBus.Properties"),
                     Some("PropertiesChanged"),
                     None,
-                    None,
+                    Some("org.freedesktop.NetworkManager"),
                     gio::DBusSignalFlags::NONE,
                     move |_, _, _, _, _, _| {
                         callback();
