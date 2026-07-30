@@ -2,7 +2,7 @@ use crate::services::audio::AudioService;
 use crate::services::brightness::BrightnessService;
 use gtk4::prelude::*;
 use gtk4::{Box as GtkBox, Button, Label, Orientation, Scale};
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 pub struct SlidersSection {
@@ -46,10 +46,38 @@ impl SlidersSection {
         vol_scale.set_valign(gtk4::Align::Center);
 
         let is_up_vol = Rc::clone(&is_updating);
+        let vol_pending = Rc::new(RefCell::new(None::<glib::SourceId>));
+        let vol_last_val = Rc::new(Cell::new(curr_vol as u32));
+        let vol_last_time = Rc::new(Cell::new(std::time::Instant::now() - std::time::Duration::from_millis(100)));
+
         vol_scale.connect_value_changed(move |scale| {
             if !is_up_vol.get() {
                 let val = scale.value().round() as u32;
-                AudioService::set_volume(val);
+                vol_last_val.set(val);
+
+                let now = std::time::Instant::now();
+                let elapsed = now.duration_since(vol_last_time.get());
+
+                if elapsed >= std::time::Duration::from_millis(50) {
+                    if let Some(source_id) = vol_pending.borrow_mut().take() {
+                        source_id.remove();
+                    }
+                    AudioService::set_volume(val);
+                    vol_last_time.set(now);
+                } else {
+                    if vol_pending.borrow().is_none() {
+                        let pending_clone = Rc::clone(&vol_pending);
+                        let val_clone = Rc::clone(&vol_last_val);
+                        let time_clone = Rc::clone(&vol_last_time);
+                        let source_id = glib::timeout_add_local_once(std::time::Duration::from_millis(50), move || {
+                            let final_val = val_clone.get();
+                            AudioService::set_volume(final_val);
+                            time_clone.set(std::time::Instant::now());
+                            pending_clone.borrow_mut().take();
+                        });
+                        *vol_pending.borrow_mut() = Some(source_id);
+                    }
+                }
             }
         });
         vol_row.append(&vol_scale);
@@ -85,10 +113,38 @@ impl SlidersSection {
         bright_scale.set_valign(gtk4::Align::Center);
 
         let is_up_bright = Rc::clone(&is_updating);
+        let bright_pending = Rc::new(RefCell::new(None::<glib::SourceId>));
+        let bright_last_val = Rc::new(Cell::new(curr_bright as u32));
+        let bright_last_time = Rc::new(Cell::new(std::time::Instant::now() - std::time::Duration::from_millis(100)));
+
         bright_scale.connect_value_changed(move |scale| {
             if !is_up_bright.get() {
                 let val = scale.value().round() as u32;
-                BrightnessService::set_brightness(val);
+                bright_last_val.set(val);
+
+                let now = std::time::Instant::now();
+                let elapsed = now.duration_since(bright_last_time.get());
+
+                if elapsed >= std::time::Duration::from_millis(50) {
+                    if let Some(source_id) = bright_pending.borrow_mut().take() {
+                        source_id.remove();
+                    }
+                    BrightnessService::set_brightness(val);
+                    bright_last_time.set(now);
+                } else {
+                    if bright_pending.borrow().is_none() {
+                        let pending_clone = Rc::clone(&bright_pending);
+                        let val_clone = Rc::clone(&bright_last_val);
+                        let time_clone = Rc::clone(&bright_last_time);
+                        let source_id = glib::timeout_add_local_once(std::time::Duration::from_millis(50), move || {
+                            let final_val = val_clone.get();
+                            BrightnessService::set_brightness(final_val);
+                            time_clone.set(std::time::Instant::now());
+                            pending_clone.borrow_mut().take();
+                        });
+                        *bright_pending.borrow_mut() = Some(source_id);
+                    }
+                }
             }
         });
         bright_row.append(&bright_scale);
