@@ -86,30 +86,58 @@ impl LeftSection {
         // Register mouse scroll controller on the workspace pills container
         let scroll = EventControllerScroll::new(EventControllerScrollFlags::VERTICAL);
         let state_clone = Rc::clone(&state);
-        scroll.connect_scroll(move |_controller, _dx, dy| {
-            let st = state_clone.borrow();
-            if let Some(active_id) = st.active_id {
-                if let Some(pos) = st.current_order.iter().position(|&id| id == active_id) {
-                    let target_id = if dy < 0.0 {
-                        // Scroll Up -> Focus previous workspace
-                        if pos > 0 {
-                            Some(st.current_order[pos - 1])
-                        } else {
-                            None
-                        }
-                    } else if dy > 0.0 {
-                        // Scroll Down -> Focus next workspace
-                        if pos + 1 < st.current_order.len() {
-                            Some(st.current_order[pos + 1])
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
+        let accumulated = Rc::new(std::cell::Cell::new(0.0f64));
+        let last_trigger = Rc::new(std::cell::Cell::new(std::time::Instant::now() - std::time::Duration::from_millis(500)));
 
-                    if let Some(tid) = target_id {
-                        NiriIpcClient::focus_workspace_id(tid);
+        scroll.connect_scroll(move |_controller, _dx, dy| {
+            let now = std::time::Instant::now();
+            if now.duration_since(last_trigger.get()) < std::time::Duration::from_millis(150) {
+                return Propagation::Stop;
+            }
+
+            let mut acc = accumulated.get();
+            if (acc > 0.0 && dy < 0.0) || (acc < 0.0 && dy > 0.0) {
+                acc = 0.0;
+            }
+            acc += dy;
+
+            let mut triggered = false;
+            let mut steps = 0i32;
+
+            if acc.abs() >= 1.0 {
+                steps = acc.signum() as i32;
+                acc = 0.0;
+                triggered = true;
+            }
+
+            accumulated.set(acc);
+
+            if triggered {
+                last_trigger.set(now);
+                let st = state_clone.borrow();
+                if let Some(active_id) = st.active_id {
+                    if let Some(pos) = st.current_order.iter().position(|&id| id == active_id) {
+                        let target_id = if steps < 0 {
+                            // Scroll Up -> Focus previous workspace
+                            if pos > 0 {
+                                Some(st.current_order[pos - 1])
+                            } else {
+                                None
+                            }
+                        } else if steps > 0 {
+                            // Scroll Down -> Focus next workspace
+                            if pos + 1 < st.current_order.len() {
+                                Some(st.current_order[pos + 1])
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
+                        if let Some(tid) = target_id {
+                            NiriIpcClient::focus_workspace_id(tid);
+                        }
                     }
                 }
             }
