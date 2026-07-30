@@ -41,6 +41,16 @@ pub struct TrayPixmap {
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
+pub struct TrayMenuEntry {
+    pub menu_id: i32,
+    pub label: String,
+    pub enabled: bool,
+    pub is_separator: bool,
+    pub children: Vec<TrayMenuEntry>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
 pub struct TrayItem {
     pub identifier: String,
     pub bus_name: String,
@@ -58,6 +68,7 @@ pub struct TrayService {
     watcher_registration_id: RefCell<Option<gio::RegistrationId>>,
     registered_items: RefCell<HashSet<String>>,
     proxies: RefCell<HashMap<String, gio::DBusProxy>>,
+    menu_proxies: RefCell<HashMap<String, gio::DBusProxy>>,
     listeners: RefCell<Vec<Rc<dyn Fn() + 'static>>>,
 }
 
@@ -69,6 +80,7 @@ impl TrayService {
             watcher_registration_id: RefCell::new(None),
             registered_items: RefCell::new(HashSet::new()),
             proxies: RefCell::new(HashMap::new()),
+            menu_proxies: RefCell::new(HashMap::new()),
             listeners: RefCell::new(Vec::new()),
         });
         Self::init_dbus(&service);
@@ -111,6 +123,7 @@ impl TrayService {
         }
     }
 
+    #[allow(dead_code)]
     pub fn context_menu(&self, identifier: &str, x: i32, y: i32) {
         if let Some(proxy) = self.proxies.borrow().get(identifier).cloned() {
             proxy.call(
@@ -310,6 +323,7 @@ impl TrayService {
         self.registered_items.borrow_mut().remove(identifier);
         self.items.borrow_mut().remove(identifier);
         self.proxies.borrow_mut().remove(identifier);
+        self.menu_proxies.borrow_mut().remove(identifier);
         self.notify_listeners();
     }
 
@@ -456,5 +470,210 @@ impl TrayService {
             return Self::extract_bytes_from_variant(&inner);
         }
         None
+    }
+
+    pub fn get_menu<F>(&self, identifier: &str, callback: F)
+    where
+        F: FnOnce(Vec<TrayMenuEntry>) + 'static,
+    {
+        let identifier = identifier.to_string();
+        let (bus_name, menu_path) = {
+            let items = self.items.borrow();
+            match items.get(&identifier) {
+                Some(item) => match &item.menu_path {
+                    Some(path) => (item.bus_name.clone(), path.clone()),
+                    None => {
+                        callback(Vec::new());
+                        return;
+                    }
+                },
+                None => {
+                    callback(Vec::new());
+                    return;
+                }
+            }
+        };
+
+        if let Some(proxy) = self.menu_proxies.borrow().get(&identifier).cloned() {
+            Self::fetch_menu_layout(identifier, proxy, callback);
+            return;
+        }
+
+        let Some(ref _connection) = *self.bus.borrow() else {
+            callback(Vec::new());
+            return;
+        };
+
+        let this_weak = Rc::downgrade(&Self::global());
+        let id_clone = identifier.clone();
+        gio::DBusProxy::for_bus(
+            gio::BusType::Session,
+            gio::DBusProxyFlags::DO_NOT_CONNECT_SIGNALS,
+            None,
+            &bus_name,
+            &menu_path,
+            "com.canonical.dbusmenu",
+            None::<&gio::Cancellable>,
+            move |result| {
+                let this = match this_weak.upgrade() {
+                    Some(t) => t,
+                    None => return,
+                };
+                match result {
+                    Ok(proxy) => {
+                        this.menu_proxies.borrow_mut().insert(id_clone.clone(), proxy.clone());
+                        Self::fetch_menu_layout(id_clone, proxy, callback);
+                    }
+                    Err(_) => {
+                        callback(Vec::new());
+                    }
+                }
+            }
+        );
+    }
+
+    fn fetch_menu_layout<F>(identifier: String, menu_proxy: gio::DBusProxy, callback: F)
+    where
+        F: FnOnce(Vec<TrayMenuEntry>) + 'static,
+    {
+        let _id_clone = identifier.clone();
+        let proxy_clone = menu_proxy.clone();
+        menu_proxy.call(
+            "AboutToShow",
+            Some(&(0i32,).to_variant()),
+            gio::DBusCallFlags::NONE,
+            5000,
+            None::<&gio::Cancellable>,
+            move |_| {
+                let props: Vec<&str> = vec!["label", "enabled", "visible", "type"];
+                proxy_clone.call(
+                    "GetLayout",
+                    Some(&(0i32, -1i32, props).to_variant()),
+                    gio::DBusCallFlags::NONE,
+                    5000,
+                    None::<&gio::Cancellable>,
+                    move |result| {
+                        let entries = match result {
+                            Ok(r) => {
+                                let service = Self::global();
+                                service.parse_layout_result(&r)
+                            }
+                            Err(_) => Vec::new(),
+                        };
+                        callback(entries);
+                    }
+                );
+            }
+        );
+    }
+
+    fn parse_layout_result(&self, result: &Variant) -> Vec<TrayMenuEntry> {
+        if result.n_children() < 2 {
+            return Vec::new();
+        }
+        let layout = result.child_value(1);
+        self.parse_layout_node(&layout)
+    }
+
+    fn parse_layout_node(&self, node: &Variant) -> Vec<TrayMenuEntry> {
+        if node.n_children() < 3 {
+            return Vec::new();
+        }
+        let children_variant = node.child_value(2);
+        let mut entries = Vec::new();
+
+        for i in 0..children_variant.n_children() {
+            let child = children_variant.child_value(i);
+            let actual_child = if child.type_().is_variant() {
+                child.child_value(0)
+            } else {
+                child
+            };
+            if let Some(entry) = self.node_to_entry(&actual_child) {
+                entries.push(entry);
+            }
+        }
+        entries
+    }
+
+    fn node_to_entry(&self, node: &Variant) -> Option<TrayMenuEntry> {
+        if node.n_children() < 3 {
+            return None;
+        }
+
+        let menu_id = node.child_value(0).get::<i32>().unwrap_or(0);
+        let props = self.parse_menu_properties(&node.child_value(1));
+
+        let visible = props.get("visible").and_then(|v| v.get::<bool>()).unwrap_or(true);
+        if !visible {
+            return None;
+        }
+
+        let entry_type = props.get("type").and_then(|v| v.str()).unwrap_or("");
+        if entry_type == "separator" {
+            return Some(TrayMenuEntry {
+                menu_id,
+                label: String::new(),
+                enabled: false,
+                is_separator: true,
+                children: Vec::new(),
+            });
+        }
+
+        let label = props.get("label").and_then(|v| v.str()).unwrap_or("").to_string();
+        let label = label.replace("__", "\u{FFFF}").replace('_', "").replace('\u{FFFF}', "_");
+
+        let enabled = props.get("enabled").and_then(|v| v.get::<bool>()).unwrap_or(true);
+        let children = self.parse_layout_node(node);
+
+        Some(TrayMenuEntry {
+            menu_id,
+            label,
+            enabled,
+            is_separator: false,
+            children,
+        })
+    }
+
+    fn parse_menu_properties(&self, properties: &Variant) -> HashMap<String, Variant> {
+        let mut map = HashMap::new();
+        for i in 0..properties.n_children() {
+            let entry = properties.child_value(i);
+            if entry.n_children() >= 2 {
+                if let Some(key) = entry.child_value(0).str() {
+                    let val = entry.child_value(1);
+                    let actual_val = if val.type_().is_variant() {
+                        val.child_value(0)
+                    } else {
+                        val
+                    };
+                    map.insert(key.to_string(), actual_val);
+                }
+            }
+        }
+        map
+    }
+
+    pub fn send_menu_event(&self, identifier: &str, menu_id: i32, event: &str) {
+        let menu_proxy = match self.menu_proxies.borrow().get(identifier).cloned() {
+            Some(p) => p,
+            None => return,
+        };
+
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as u32)
+            .unwrap_or(0);
+        let data_variant = "".to_variant();
+        let params = (menu_id, event, data_variant, timestamp).to_variant();
+
+        menu_proxy.call(
+            "Event",
+            Some(&params),
+            gio::DBusCallFlags::NONE,
+            5000,
+            None::<&gio::Cancellable>,
+            |_| {}
+        );
     }
 }

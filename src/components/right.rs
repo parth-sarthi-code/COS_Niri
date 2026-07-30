@@ -39,6 +39,14 @@ impl RightSection {
             let tray_box_c = tray_box_clone.clone();
             glib::idle_add_local(move || {
                 while let Some(child) = tray_box_c.first_child() {
+                    let mut popover_child = child.first_child();
+                    while let Some(c) = popover_child {
+                        popover_child = c.next_sibling();
+                        // GtkPopover is a widget type, we can inspect its type name
+                        if c.type_().name().contains("Popover") {
+                            c.unparent();
+                        }
+                    }
                     tray_box_c.remove(&child);
                 }
 
@@ -102,16 +110,116 @@ impl RightSection {
                     btn.set_child(Some(&bubble));
 
                     let id_left = item.identifier.clone();
+                    let has_menu = item.menu_path.is_some();
+                    let popover = gtk4::Popover::new();
+                    popover.set_parent(&btn);
+                    popover.set_has_arrow(true);
+                    popover.add_css_class("qs-popup-popover");
+
+                    let popover_left = popover.clone();
                     btn.connect_clicked(move |_| {
-                        TrayService::global().activate(&id_left, -1, -1);
+                        if has_menu {
+                            let pop = popover_left.clone();
+                            let id = id_left.clone();
+                            let id_for_get = id.clone();
+                            TrayService::global().get_menu(&id_for_get, move |entries| {
+                                if entries.is_empty() {
+                                    return;
+                                }
+                                let menu_box = GtkBox::new(Orientation::Vertical, 2);
+                                menu_box.add_css_class("qs-popup-container");
+                                menu_box.set_margin_start(4);
+                                menu_box.set_margin_end(4);
+                                menu_box.set_margin_top(4);
+                                menu_box.set_margin_bottom(4);
+
+                                for entry in entries {
+                                    if entry.is_separator {
+                                        let sep = gtk4::Separator::new(Orientation::Horizontal);
+                                        sep.add_css_class("shelf-sep");
+                                        menu_box.append(&sep);
+                                    } else {
+                                        let m_btn = Button::new();
+                                        m_btn.add_css_class("qs-subpage-item-btn");
+
+                                        let label = Label::new(Some(&entry.label));
+                                        label.set_halign(gtk4::Align::Start);
+                                        label.add_css_class("qs-subpage-item-title");
+                                        m_btn.set_child(Some(&label));
+
+                                        let id_click = id.clone();
+                                        let menu_id = entry.menu_id;
+                                        let pop_close = pop.clone();
+                                        m_btn.connect_clicked(move |_| {
+                                            TrayService::global().send_menu_event(&id_click, menu_id, "clicked");
+                                            pop_close.popdown();
+                                        });
+                                        menu_box.append(&m_btn);
+                                    }
+                                }
+
+                                glib::idle_add_local(move || {
+                                    pop.set_child(Some(&menu_box));
+                                    pop.popup();
+                                    glib::ControlFlow::Break
+                                });
+                            });
+                        } else {
+                            TrayService::global().activate(&id_left, -1, -1);
+                        }
                     });
 
                     let id_right = item.identifier.clone();
+                    let popover_right = popover.clone();
                     let gesture = gtk4::GestureClick::new();
                     gesture.set_button(gdk::BUTTON_SECONDARY);
                     gesture.connect_pressed(move |g, _, _, _| {
                         g.set_state(gtk4::EventSequenceState::Claimed);
-                        TrayService::global().context_menu(&id_right, -1, -1);
+                        let pop = popover_right.clone();
+                        let id = id_right.clone();
+                        let id_for_get = id.clone();
+                        TrayService::global().get_menu(&id_for_get, move |entries| {
+                            if entries.is_empty() {
+                                return;
+                            }
+                            let menu_box = GtkBox::new(Orientation::Vertical, 2);
+                            menu_box.add_css_class("qs-popup-container");
+                            menu_box.set_margin_start(4);
+                            menu_box.set_margin_end(4);
+                            menu_box.set_margin_top(4);
+                            menu_box.set_margin_bottom(4);
+
+                            for entry in entries {
+                                if entry.is_separator {
+                                    let sep = gtk4::Separator::new(Orientation::Horizontal);
+                                    sep.add_css_class("shelf-sep");
+                                    menu_box.append(&sep);
+                                } else {
+                                    let m_btn = Button::new();
+                                    m_btn.add_css_class("qs-subpage-item-btn");
+
+                                    let label = Label::new(Some(&entry.label));
+                                    label.set_halign(gtk4::Align::Start);
+                                    label.add_css_class("qs-subpage-item-title");
+                                    m_btn.set_child(Some(&label));
+
+                                    let id_click = id.clone();
+                                    let menu_id = entry.menu_id;
+                                    let pop_close = pop.clone();
+                                    m_btn.connect_clicked(move |_| {
+                                        TrayService::global().send_menu_event(&id_click, menu_id, "clicked");
+                                        pop_close.popdown();
+                                    });
+                                    menu_box.append(&m_btn);
+                                }
+                            }
+
+                            glib::idle_add_local(move || {
+                                pop.set_child(Some(&menu_box));
+                                pop.popup();
+                                glib::ControlFlow::Break
+                            });
+                        });
                     });
                     btn.add_controller(gesture);
 
