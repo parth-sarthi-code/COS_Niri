@@ -127,11 +127,11 @@ impl LauncherPopup {
         let grid = Grid::new();
         grid.set_column_homogeneous(true);
         grid.set_row_homogeneous(false);
-        grid.set_row_spacing(16);
-        grid.set_column_spacing(12);
+        grid.set_row_spacing(14);
+        grid.set_column_spacing(10);
         grid.set_vexpand(true);
         grid.set_hexpand(true);
-        grid.set_halign(gtk4::Align::Fill); // Fill to match search entry width
+        grid.set_halign(gtk4::Align::Center);
         grid.add_css_class("tahoe-app-grid");
 
         // Pre-allocate 60 tiles for vertical scrolling (reduces memory & DOM overhead)
@@ -145,7 +145,7 @@ impl LauncherPopup {
 
             let btn = Button::new();
             btn.add_css_class("tahoe-app-item");
-            btn.set_size_request(104, -1);
+            btn.set_size_request(100, -1);
             btn.set_halign(gtk4::Align::Center);
             btn.set_valign(gtk4::Align::Center);
 
@@ -163,18 +163,17 @@ impl LauncherPopup {
             icon.set_pixel_size(40);
             icon.set_halign(gtk4::Align::Center);
             icon.set_valign(gtk4::Align::Center);
+            icon.set_hexpand(true);
+            icon.set_vexpand(true);
             bubble.append(&icon);
             item_box.append(&bubble);
 
             let label = Label::new(None);
             label.add_css_class("tahoe-app-name");
-            label.set_wrap(true);
-            label.set_wrap_mode(gtk4::pango::WrapMode::WordChar);
-            label.set_lines(2);
             label.set_ellipsize(gtk4::pango::EllipsizeMode::End);
-            label.set_max_width_chars(13);
-            label.set_width_chars(13);
-            label.set_size_request(96, -1);
+            label.set_max_width_chars(11);
+            label.set_width_chars(11);
+            label.set_size_request(84, -1);
             label.set_halign(gtk4::Align::Center);
             item_box.append(&label);
 
@@ -206,20 +205,7 @@ impl LauncherPopup {
         }
 
         grid_scroll.set_child(Some(&grid));
-
-        // Create overlay container for scrolled window to apply bottom fade gradient
-        let overlay_container = gtk4::Overlay::new();
-        overlay_container.set_child(Some(&grid_scroll));
-
-        // Fade overlay box (completely click-through)
-        let fade_box = GtkBox::new(Orientation::Vertical, 0);
-        fade_box.add_css_class("tahoe-grid-fade");
-        fade_box.set_valign(gtk4::Align::End);
-        fade_box.set_height_request(40);
-        fade_box.set_can_target(false);
-        overlay_container.add_overlay(&fade_box);
-
-        container.append(&overlay_container);
+        container.append(&grid_scroll);
         window.set_child(Some(&container));
 
         let popup = Self {
