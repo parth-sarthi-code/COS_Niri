@@ -65,13 +65,17 @@ impl AudioPage {
     pub fn sync_state(&self) {
         let (sender, receiver) = mpsc::channel::<Vec<AudioSink>>();
         let list_box_clone = self.list_box.clone();
+        let (rfd, wfd) = crate::bar::create_event_pipe();
 
         thread::spawn(move || {
             let sinks = AudioService::get_sinks();
             let _ = sender.send(sinks);
+            crate::bar::notify_pipe(wfd);
+            unsafe { libc::close(wfd); }
         });
 
-        glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+        glib::unix_fd_add_local(rfd, glib::IOCondition::IN, move |fd, _| {
+            crate::bar::drain_pipe(fd);
             if let Ok(sinks) = receiver.try_recv() {
                 // Clear existing GTK elements
                 while let Some(child) = list_box_clone.first_child() {
@@ -82,61 +86,59 @@ impl AudioPage {
                     let empty_lbl = Label::new(Some("No audio output devices found"));
                     empty_lbl.add_css_class("qs-subpage-empty");
                     list_box_clone.append(&empty_lbl);
-                    return glib::ControlFlow::Break;
-                }
-
-                for sink in sinks {
-                    let item_btn = Button::new();
-                    item_btn.add_css_class("qs-list-item");
-                    if sink.is_default {
-                        item_btn.add_css_class("active");
-                    }
-
-                    let row = GtkBox::new(Orientation::Horizontal, 8);
-
-                    // Smart contextual icon (Headphones vs DisplayPort/HDMI vs Speaker)
-                    let icon_code = Self::get_sink_icon(&sink.name, &sink.description);
-                    let icon = Label::new(Some(icon_code));
-                    icon.add_css_class("ms-icon");
-                    row.append(&icon);
-
-                    let desc_lbl = Label::new(Some(&sink.description));
-                    desc_lbl.add_css_class("qs-list-title");
-                    desc_lbl.set_hexpand(true);
-                    desc_lbl.set_halign(gtk4::Align::Start);
-                    row.append(&desc_lbl);
-
-                    if sink.is_default {
-                        let check_icon = Label::new(Some("\u{e5ca}")); // check icon
-                        check_icon.add_css_class("ms-icon");
-                        row.append(&check_icon);
-                    }
-
-                    item_btn.set_child(Some(&row));
-
-                    let sink_name = sink.name.clone();
-                    let list_ref = list_box_clone.clone();
-
-                    item_btn.connect_clicked(move |btn| {
-                        // Optimistic UI state update
-                        let mut curr = list_ref.first_child();
-                        while let Some(child) = curr {
-                            if let Ok(b) = child.clone().downcast::<Button>() {
-                                b.remove_css_class("active");
-                            }
-                            curr = child.next_sibling();
+                } else {
+                    for sink in sinks {
+                        let item_btn = Button::new();
+                        item_btn.add_css_class("qs-list-item");
+                        if sink.is_default {
+                            item_btn.add_css_class("active");
                         }
-                        btn.add_css_class("active");
 
-                        AudioService::set_default_sink(&sink_name);
-                    });
+                        let row = GtkBox::new(Orientation::Horizontal, 8);
 
-                    list_box_clone.append(&item_btn);
+                        // Smart contextual icon (Headphones vs DisplayPort/HDMI vs Speaker)
+                        let icon_code = Self::get_sink_icon(&sink.name, &sink.description);
+                        let icon = Label::new(Some(icon_code));
+                        icon.add_css_class("ms-icon");
+                        row.append(&icon);
+
+                        let desc_lbl = Label::new(Some(&sink.description));
+                        desc_lbl.add_css_class("qs-list-title");
+                        desc_lbl.set_hexpand(true);
+                        desc_lbl.set_halign(gtk4::Align::Start);
+                        row.append(&desc_lbl);
+
+                        if sink.is_default {
+                            let check_icon = Label::new(Some("\u{e5ca}")); // check icon
+                            check_icon.add_css_class("ms-icon");
+                            row.append(&check_icon);
+                        }
+
+                        item_btn.set_child(Some(&row));
+
+                        let sink_name = sink.name.clone();
+                        let list_ref = list_box_clone.clone();
+
+                        item_btn.connect_clicked(move |btn| {
+                            // Optimistic UI state update
+                            let mut curr = list_ref.first_child();
+                            while let Some(child) = curr {
+                                if let Ok(b) = child.clone().downcast::<Button>() {
+                                    b.remove_css_class("active");
+                                }
+                                curr = child.next_sibling();
+                            }
+                            btn.add_css_class("active");
+
+                            AudioService::set_default_sink(&sink_name);
+                        });
+
+                        list_box_clone.append(&item_btn);
+                    }
                 }
-                glib::ControlFlow::Break
-            } else {
-                glib::ControlFlow::Continue
             }
+            unsafe { libc::close(fd); }
+            glib::ControlFlow::Break
         });
     }
 

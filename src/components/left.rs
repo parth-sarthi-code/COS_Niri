@@ -203,6 +203,17 @@ impl LeftSection {
 
     /// Background listener loop for Niri IPC events
     fn start_workspace_listener() {
+        // Debounce pipe for window dock updates — coalesces N rapid events into 1 IPC call
+        let (dock_rfd, dock_wfd) = crate::bar::create_event_pipe();
+
+        glib::unix_fd_add_local(dock_rfd, glib::IOCondition::IN, move |fd, _| {
+            crate::bar::drain_pipe(fd);
+            if let Ok(windows) = NiriIpcClient::get_windows() {
+                crate::components::center::CenterSection::update_dock(&windows);
+            }
+            glib::ControlFlow::Continue
+        });
+
         std::thread::spawn(move || {
             let _ = NiriIpcClient::listen_events(move |event| match event {
                 Event::WorkspacesChanged { workspaces } => {
@@ -231,11 +242,8 @@ impl LeftSection {
                 Event::WindowOpenedOrChanged { .. }
                 | Event::WindowClosed { .. }
                 | Event::WindowFocusChanged { .. } => {
-                    if let Ok(windows) = NiriIpcClient::get_windows() {
-                        glib::idle_add_once(move || {
-                            crate::components::center::CenterSection::update_dock(&windows);
-                        });
-                    }
+                    // Signal the debounce pipe — GLib main loop coalesces and makes 1 IPC call
+                    crate::bar::notify_pipe(dock_wfd);
                 }
                 _ => {}
             });

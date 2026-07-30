@@ -17,12 +17,19 @@ impl ThemeService {
             .unwrap_or_default()
             .join(".config/cos-niri");
         let _ = std::fs::create_dir_all(config_dir);
-        
-        if let Some(color) = Self::extract_wallpaper_color() {
-            Self::generate_theme(color);
-        } else {
+
+        if !Self::get_colors_css_path().exists() {
             Self::write_fallback_theme();
         }
+
+        std::thread::spawn(|| {
+            if let Some(color) = Self::extract_wallpaper_color() {
+                Self::generate_theme(color);
+                unsafe {
+                    libc::raise(libc::SIGUSR1);
+                }
+            }
+        });
     }
 
     fn extract_wallpaper_color() -> Option<(u8, u8, u8)> {

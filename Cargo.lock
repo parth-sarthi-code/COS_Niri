@@ -120,6 +120,7 @@ dependencies = [
  "gtk4",
  "gtk4-layer-shell",
  "image",
+ "libc",
  "niri-ipc",
  "serde",
  "serde_json",

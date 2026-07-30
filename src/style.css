@@ -897,6 +897,165 @@ label.launcher-app-name {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+/* === TAHOE LAUNCHER (MODERN GLASSMORPHIC FLOATING BOX) === */
+window.tahoe-launcher-window {
+    background-color: transparent;
+}
+
+box.tahoe-launcher-container {
+    background-color: rgba(16, 20, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 24px;
+    padding: 20px 24px 16px 24px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(24px);
+    font-family: "Outfit", "Roboto", sans-serif;
+    color: #ffffff;
+}
+
+box.tahoe-header-wrapper {
+    margin-bottom: 4px;
+}
+
+label.tahoe-title-icon {
+    font-size: 22px;
+    color: #a8c7fa;
+}
+
+label.tahoe-title-text {
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.2px;
+}
+
+scrolledwindow.tahoe-category-scroll {
+    background: transparent;
+    border: none;
+    margin-top: 4px;
+}
+
+box.tahoe-category-box {
+    padding: 2px 0;
+}
+
+button.tahoe-category-pill {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    color: #ffffff;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 160ms ease;
+}
+
+button.tahoe-category-pill label {
+    color: #ffffff;
+}
+
+button.tahoe-category-pill:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+}
+
+button.tahoe-category-pill.active {
+    background-color: #a8c7fa;
+    border-color: #a8c7fa;
+    color: #0b1d3a;
+    box-shadow: 0 2px 8px rgba(168, 199, 250, 0.35);
+}
+
+button.tahoe-category-pill.active label {
+    color: #0b1d3a;
+    font-weight: 700;
+}
+
+box.tahoe-search-wrapper {
+    margin-bottom: 8px;
+}
+
+searchentry.tahoe-search-pill, entry.tahoe-search-pill {
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    color: #ffffff;
+    padding: 8px 16px;
+    font-size: 14px;
+    transition: all 180ms ease;
+}
+
+searchentry.tahoe-search-pill text, entry.tahoe-search-pill text {
+    color: #ffffff;
+}
+
+searchentry.tahoe-search-pill image, entry.tahoe-search-pill image {
+    color: #a8c7fa;
+}
+
+searchentry.tahoe-search-pill:focus, entry.tahoe-search-pill:focus {
+    border-color: #a8c7fa;
+    background-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 0 0 2px rgba(168, 199, 250, 0.25);
+}
+
+scrolledwindow.tahoe-grid-scroll viewport,
+scrolledwindow.tahoe-grid-scroll {
+    background: transparent;
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+
+scrolledwindow.tahoe-grid-scroll scrollbar {
+    min-width: 4px;
+    background: transparent;
+    border: none;
+}
+
+scrolledwindow.tahoe-grid-scroll scrollbar slider {
+    min-width: 4px;
+    background-color: rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+}
+
+grid.tahoe-app-grid {
+    background: transparent;
+}
+
+button.tahoe-app-item {
+    background: none;
+    border: none;
+    border-radius: 16px;
+    padding: 8px 4px;
+    color: #ffffff;
+    transition: all 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+button.tahoe-app-item:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+box.tahoe-icon-bubble {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    transition: all 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+button.tahoe-app-item:hover box.tahoe-icon-bubble {
+    transform: scale(1.08);
+    background-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+label.tahoe-app-name {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.88);
+    margin-top: 4px;
+}
+
 /* === SLEEK & MINIMAL SWITCH STYLING === */
 switch {
     background-color: rgba(255, 255, 255, 0.12);
@@ -938,6 +1097,13 @@ switch slider {
 switch:checked slider {
     background-color: @on-primary;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.click-catcher-window,
+.click-catcher-overlay {
+    background-color: rgba(0, 0, 0, 0.005);
+    border: none;
+    box-shadow: none;
 }
 
 

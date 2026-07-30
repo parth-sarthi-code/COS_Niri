@@ -209,15 +209,28 @@ layer-rule {
     }
 }
 
-// ChromeOS App Launcher Popup — shadow off, blur off for fast rendering
+// ChromeOS App Launcher Popup — unitone blur backdrop
 layer-rule {
     match namespace="cos-launcher"
-    
-    geometry-corner-radius 0
+    geometry-corner-radius 26
+    shadow {
+        on
+    }
+    background-effect {
+        blur true
+        xray false
+    }
+}
+
+// Icedock Floating Glass Dock — pure unitone blur
+layer-rule {
+    match namespace="icedock"
+    geometry-corner-radius 22
     shadow {
         off
     }
     background-effect {
-        blur false
+        blur true
+        xray false
     }
 }

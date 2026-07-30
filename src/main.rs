@@ -18,20 +18,15 @@ fn main() {
     // Generate/initialize Material You theme colors from wallpaper
     services::theme::ThemeService::initialize();
 
-    // Set up signal handler (SIGUSR1 - 10) for on-demand theme updates
+    // Set up signal handler (SIGUSR1 - 10) for on-demand theme CSS reloads
     glib::unix_signal_add_local(10, move || {
-        eprintln!("[theme] SIGUSR1 received, regenerating theme colors...");
-        services::theme::ThemeService::initialize();
+        eprintln!("[theme] SIGUSR1 received, hot-reloading theme CSS...");
         load_css();
         glib::ControlFlow::Continue
     });
 
     // Fix #2: Ensure Material Symbols + Roboto fonts are installed before GTK init
     ensure_fonts_installed();
-
-    // Pre-cache display refresh rate for animation tick callbacks (165Hz)
-    let hz = services::animation::get_refresh_rate();
-    eprintln!("[startup] Display refresh rate cached: {hz} Hz");
 
     let app = Application::builder()
         .application_id("com.chromeos.niri.bar")
@@ -129,19 +124,25 @@ fn ensure_fonts_installed() {
         "Roboto-Bold.ttf",
     ];
 
+    let mut copied = 0;
     for font in &fonts {
         let src = project_fonts.join(font);
         let dst = font_dir.join(font);
         if src.exists() && !dst.exists() {
-            if let Err(e) = std::fs::copy(&src, &dst) {
-                eprintln!("Warning: failed to copy {}: {}", font, e);
+            if let Ok(_) = std::fs::copy(&src, &dst) {
+                copied += 1;
             }
         }
     }
 
-    // Run fc-cache to register fonts with fontconfig/Pango
-    let _ = std::process::Command::new("fc-cache")
-        .arg("-f")
-        .arg(&font_dir)
-        .status();
+    if copied > 0 {
+        // Run fc-cache asynchronously in background to avoid blocking GTK startup
+        let target_dir = font_dir.clone();
+        std::thread::spawn(move || {
+            let _ = std::process::Command::new("fc-cache")
+                .arg("-f")
+                .arg(&target_dir)
+                .status();
+        });
+    }
 }

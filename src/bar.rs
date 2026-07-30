@@ -1,5 +1,6 @@
 use crate::components::calendar::popup::CalendarPopup;
 use crate::components::center::CenterSection;
+use crate::components::click_catcher::ClickCatcher;
 use crate::components::left::LeftSection;
 use crate::components::launcher::LauncherPopup;
 use crate::components::quick_settings::grid::GridSection;
@@ -10,9 +11,34 @@ use crate::services::network::NetworkService;
 use gtk4::prelude::*;
 use gtk4::{Application, ApplicationWindow, Box as GtkBox, Orientation, Separator};
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
+use std::cell::RefCell;
+use std::os::unix::io::RawFd;
 use std::rc::Rc;
-use std::sync::mpsc;
-use std::time::Duration;
+
+/// Create a Unix pipe pair for zero-poll event notification.
+/// Returns (read_fd, write_fd). Both are set to O_CLOEXEC.
+pub fn create_event_pipe() -> (RawFd, RawFd) {
+    let mut fds = [0i32; 2];
+    unsafe {
+        libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC | libc::O_NONBLOCK);
+    }
+    (fds[0], fds[1])
+}
+
+/// Write a single byte to the pipe to wake the GLib main loop.
+pub fn notify_pipe(write_fd: RawFd) {
+    unsafe {
+        libc::write(write_fd, [1u8].as_ptr() as *const _, 1);
+    }
+}
+
+/// Drain all pending bytes from the pipe read end (coalesces multiple events).
+pub fn drain_pipe(read_fd: RawFd) {
+    let mut buf = [0u8; 64];
+    unsafe {
+        while libc::read(read_fd, buf.as_mut_ptr() as *mut _, buf.len()) > 0 {}
+    }
+}
 
 #[allow(dead_code)]
 pub struct BarWindow {
@@ -23,6 +49,7 @@ pub struct BarWindow {
     pub quick_settings: Rc<QuickSettingsPopup>,
     pub calendar: Rc<CalendarPopup>,
     pub launcher: Rc<LauncherPopup>,
+    pub click_catcher: Rc<ClickCatcher>,
 }
 
 impl BarWindow {
@@ -53,58 +80,139 @@ impl BarWindow {
         // Instantiate Calendar floating popup
         let calendar = Rc::new(CalendarPopup::new(app));
 
-        let left_section = LeftSection::new(move || {
-            let _ = std::process::Command::new("fuzzel").spawn();
+        // Transparent full-screen Layer-Shell overlay for outside-click dismissal (matching Noctalia v5)
+        let l_dismiss = Rc::clone(&launcher);
+        let q_dismiss = Rc::clone(&quick_settings);
+        let c_dismiss = Rc::clone(&calendar);
+        let cc_cell = Rc::new(RefCell::new(Option::<Rc<ClickCatcher>>::None));
+        let cc_dismiss_ref = Rc::clone(&cc_cell);
+
+        let click_catcher = Rc::new(ClickCatcher::new(app, move || {
+            l_dismiss.close();
+            q_dismiss.close();
+            c_dismiss.close();
+            if let Some(ref cc) = *cc_dismiss_ref.borrow() {
+                cc.hide();
+            }
+        }));
+        *cc_cell.borrow_mut() = Some(Rc::clone(&click_catcher));
+
+        // Automatically hide the click catcher when all popups become invisible (event-driven panel coordinator)
+        let l_visible_ref = Rc::clone(&launcher);
+        let q_visible_ref = Rc::clone(&quick_settings);
+        let c_visible_ref = Rc::clone(&calendar);
+        let cc_visible_ref = Rc::clone(&click_catcher);
+
+        let update_cc_visibility = move || {
+            let any_visible = l_visible_ref.window.is_visible() 
+                || q_visible_ref.window.is_visible() 
+                || c_visible_ref.window.is_visible();
+            if !any_visible {
+                cc_visible_ref.hide();
+            }
+        };
+
+        let cb = Rc::new(update_cc_visibility);
+
+        let cb_l = Rc::clone(&cb);
+        launcher.window.connect_visible_notify(move |_| {
+            cb_l();
         });
+
+        let cb_q = Rc::clone(&cb);
+        quick_settings.window.connect_visible_notify(move |_| {
+            cb_q();
+        });
+
+        let cb_c = Rc::clone(&cb);
+        calendar.window.connect_visible_notify(move |_| {
+            cb_c();
+        });
+
+        // Wire Launcher toggle
+        let l_toggle = Rc::clone(&launcher);
+        let q_toggle_l = Rc::clone(&quick_settings);
+        let c_toggle_l = Rc::clone(&calendar);
+        let cc_l = Rc::clone(&click_catcher);
+
+        let left_section = LeftSection::new(move || {
+            let is_open = l_toggle.window.is_visible();
+            q_toggle_l.close();
+            c_toggle_l.close();
+            if is_open {
+                l_toggle.close();
+                cc_l.hide();
+            } else {
+                cc_l.show();
+                l_toggle.toggle();
+            }
+        });
+
         let center_section = CenterSection::new();
 
-        let qs_toggle_ref = Rc::clone(&quick_settings);
-        let cal_toggle_ref = Rc::clone(&calendar);
+        // Wire Quick Settings & Calendar toggles
+        let q_toggle = Rc::clone(&quick_settings);
+        let l_toggle_q = Rc::clone(&launcher);
+        let c_toggle_q = Rc::clone(&calendar);
+        let cc_q = Rc::clone(&click_catcher);
+
+        let c_toggle = Rc::clone(&calendar);
+        let l_toggle_c = Rc::clone(&launcher);
+        let q_toggle_c = Rc::clone(&quick_settings);
+        let cc_c = Rc::clone(&click_catcher);
 
         let right_section = Rc::new(RightSection::new(
             move || {
-                qs_toggle_ref.toggle();
+                let is_open = q_toggle.window.is_visible();
+                l_toggle_q.close();
+                c_toggle_q.close();
+                if is_open {
+                    q_toggle.close();
+                    cc_q.hide();
+                } else {
+                    cc_q.show();
+                    q_toggle.toggle();
+                }
             },
             move || {
-                cal_toggle_ref.toggle();
+                let is_open = c_toggle.window.is_visible();
+                l_toggle_c.close();
+                q_toggle_c.close();
+                if is_open {
+                    c_toggle.close();
+                    cc_c.hide();
+                } else {
+                    cc_c.show();
+                    c_toggle.toggle();
+                }
             },
         ));
 
-        // NetworkManager live event listener via channel (epoll sleep 0.0% CPU)
-        let (net_tx, net_rx) = mpsc::channel::<()>();
+        // NetworkManager live event listener via Unix pipe (epoll 0.0% CPU idle)
+        let (net_read_fd, net_write_fd) = create_event_pipe();
         NetworkService::listen_events(move || {
-            let _ = net_tx.send(());
+            notify_pipe(net_write_fd);
         });
 
         let qs_net = Rc::clone(&quick_settings);
         let right_net = Rc::clone(&right_section);
-        glib::timeout_add_local(Duration::from_millis(200), move || {
-            let mut fired = false;
-            while net_rx.try_recv().is_ok() {
-                fired = true;
-            }
-            if fired {
-                right_net.update_network_state();
-                GridSection::async_refresh(Rc::clone(&qs_net.grid));
-            }
+        glib::unix_fd_add_local(net_read_fd, glib::IOCondition::IN, move |fd, _| {
+            drain_pipe(fd);
+            right_net.update_network_state();
+            GridSection::async_refresh(Rc::clone(&qs_net.grid));
             glib::ControlFlow::Continue
         });
 
-        // Bluetooth live event listener via channel (epoll sleep 0.0% CPU)
-        let (bt_tx, bt_rx) = mpsc::channel::<()>();
+        // Bluetooth live event listener via Unix pipe (epoll 0.0% CPU idle)
+        let (bt_read_fd, bt_write_fd) = create_event_pipe();
         BluetoothService::listen_events(move || {
-            let _ = bt_tx.send(());
+            notify_pipe(bt_write_fd);
         });
 
         let qs_bt = Rc::clone(&quick_settings);
-        glib::timeout_add_local(Duration::from_millis(200), move || {
-            let mut fired = false;
-            while bt_rx.try_recv().is_ok() {
-                fired = true;
-            }
-            if fired {
-                GridSection::async_refresh(Rc::clone(&qs_bt.grid));
-            }
+        glib::unix_fd_add_local(bt_read_fd, glib::IOCondition::IN, move |fd, _| {
+            drain_pipe(fd);
+            GridSection::async_refresh(Rc::clone(&qs_bt.grid));
             glib::ControlFlow::Continue
         });
 
@@ -149,10 +257,13 @@ impl BarWindow {
             quick_settings,
             calendar,
             launcher,
+            click_catcher,
         }
     }
 
     pub fn show(&self) {
+        self.window.set_visible(true);
         self.window.present();
+        eprintln!("[bar] Bar window presented successfully");
     }
 }

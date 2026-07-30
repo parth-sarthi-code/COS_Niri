@@ -83,17 +83,7 @@ impl BluetoothService {
         devices
     }
 
-    fn check_is_connected(mac: &str) -> bool {
-        if let Ok(output) = Command::new("bluetoothctl")
-            .env("LC_ALL", "C")
-            .args(["info", mac])
-            .output()
-        {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            return stdout.contains("Connected: yes");
-        }
-        false
-    }
+
 
     /// Connect or disconnect Bluetooth device by MAC address asynchronously using worker thread
     pub fn toggle_device_connection(mac: &str, current_connected: bool) {

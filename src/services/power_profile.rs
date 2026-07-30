@@ -17,14 +17,6 @@ impl PowerProfile {
         }
     }
 
-    pub fn gnome_icon_name(&self) -> &'static str {
-        match self {
-            Self::Performance => "power-profile-performance-symbolic",
-            Self::Balanced => "power-profile-balanced-symbolic",
-            Self::PowerSaver => "power-profile-power-saver-symbolic",
-        }
-    }
-
     pub fn icon_code(&self) -> &'static str {
         match self {
             Self::Performance => "\u{e80e}", // speed gauge (GNOME style)
@@ -80,16 +72,5 @@ impl PowerProfileService {
         });
 
         next
-    }
-
-    /// Set active power profile asynchronously
-    pub fn set_profile(profile: PowerProfile) {
-        let cmd_arg = profile.to_cmd_str();
-        TaskWorker::dispatch(move || {
-            let _ = Command::new("powerprofilesctl")
-                .env("LC_ALL", "C")
-                .args(["set", cmd_arg])
-                .output();
-        });
     }
 }

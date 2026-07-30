@@ -25,6 +25,7 @@ pub struct DesktopEntry {
     pub categories: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct PinnedAppConfig {
     pub display_title: String,
@@ -79,6 +80,7 @@ const DEFAULT_PINNED_APPS: &[(&str, &str, &str, &[&str], &[&str])] = &[
     ),
 ];
 
+#[allow(dead_code)]
 struct PinnedAppWidget {
     config: PinnedAppConfig,
     button: Button,
@@ -92,6 +94,7 @@ struct UnpinnedAppWidget {
     focus_id_cell: Rc<RefCell<Option<u64>>>,
 }
 
+#[allow(dead_code)]
 struct CenterState {
     container: Rc<GtkBox>,
     pinned_widgets: Vec<PinnedAppWidget>,
@@ -359,13 +362,41 @@ impl CenterSection {
 
     /// Fast POSIX direct binary execution (<1ms) with kernel process detachment (setsid)
     pub fn launch_app(exec_cmd: &str) {
-        let clean_cmd = exec_cmd
-            .split_whitespace()
-            .filter(|arg| !arg.starts_with('%'))
-            .collect::<Vec<_>>()
-            .join(" ");
+        let mut parts = Vec::new();
+        let mut current = String::new();
+        let mut in_double_quotes = false;
+        let mut in_single_quotes = false;
+        let mut escaped = false;
 
-        let mut parts: Vec<String> = clean_cmd.split_whitespace().map(|s| s.to_string()).collect();
+        for c in exec_cmd.chars() {
+            if escaped {
+                current.push(c);
+                escaped = false;
+            } else if c == '\\' && !in_single_quotes {
+                escaped = true;
+            } else if c == '"' && !in_single_quotes {
+                in_double_quotes = !in_double_quotes;
+            } else if c == '\'' && !in_double_quotes {
+                in_single_quotes = !in_single_quotes;
+            } else if c.is_whitespace() && !in_double_quotes && !in_single_quotes {
+                if !current.is_empty() {
+                    let first_char = current.chars().next();
+                    if first_char != Some('%') {
+                        parts.push(current.clone());
+                    }
+                    current.clear();
+                }
+            } else {
+                current.push(c);
+            }
+        }
+        if !current.is_empty() {
+            let first_char = current.chars().next();
+            if first_char != Some('%') {
+                parts.push(current);
+            }
+        }
+
         if parts.is_empty() {
             return;
         }

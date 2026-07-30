@@ -63,13 +63,17 @@ impl BtPage {
 
             let (sender, receiver) = mpsc::channel::<Vec<BluetoothDevice>>();
             let list_box_clone = list_box.clone();
+            let (rfd, wfd) = crate::bar::create_event_pipe();
 
             thread::spawn(move || {
                 let devices = BluetoothService::get_devices();
                 let _ = sender.send(devices);
+                crate::bar::notify_pipe(wfd);
+                unsafe { libc::close(wfd); }
             });
 
-            glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+            glib::unix_fd_add_local(rfd, glib::IOCondition::IN, move |fd, _| {
+                crate::bar::drain_pipe(fd);
                 if let Ok(devices) = receiver.try_recv() {
                     // Collect existing GTK Button items for recycling
                     let mut existing_btns: Vec<Button> = Vec::new();
@@ -144,10 +148,9 @@ impl BtPage {
                             }
                         }
                     }
-                    glib::ControlFlow::Break
-                } else {
-                    glib::ControlFlow::Continue
                 }
+                unsafe { libc::close(fd); }
+                glib::ControlFlow::Break
             });
         } else {
             let off_lbl = Label::new(Some("Bluetooth is turned off"));

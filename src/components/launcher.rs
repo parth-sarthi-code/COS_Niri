@@ -1,112 +1,286 @@
 use crate::components::center::CenterSection;
 use gtk4::prelude::*;
 use gtk4::{
-    Application, ApplicationWindow, Box as GtkBox, Button, FlowBox, Image, Label, Orientation,
+    Application, ApplicationWindow, Box as GtkBox, Button, Grid, Image, Label, Orientation,
     ScrolledWindow, SearchEntry,
 };
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
+use std::cell::RefCell;
+use std::rc::Rc;
+
+struct TileWidget {
+    button: Button,
+    icon: Image,
+    label: Label,
+    exec_cmd: Rc<RefCell<String>>,
+    last_icon: Rc<RefCell<String>>,
+}
 
 pub struct LauncherPopup {
     pub window: ApplicationWindow,
-    flowbox: FlowBox,
     search_entry: SearchEntry,
+    tiles: Vec<TileWidget>,
+    selected_category: Rc<RefCell<String>>,
+    category_buttons: Vec<(String, Button)>,
+    grid_scroll: ScrolledWindow,
 }
 
 impl LauncherPopup {
     pub fn new(app: &Application) -> Self {
         let window = ApplicationWindow::new(app);
 
-        // Configure Layer-Shell popup window as fullscreen
+        // Configure Layer-Shell popup window as floating container
         window.init_layer_shell();
-        window.set_layer(Layer::Overlay);
+        window.set_layer(Layer::Top);
         window.set_namespace("cos-launcher");
 
-        // Fullscreen anchors
-        window.set_anchor(Edge::Bottom, true);
-        window.set_anchor(Edge::Left, true);
-        window.set_anchor(Edge::Right, true);
-        window.set_anchor(Edge::Top, true);
+        // Centered Floating Box Layout (Tahoe Glassmorphic Launcher)
+        window.set_anchor(Edge::Bottom, false);
+        window.set_anchor(Edge::Top, false);
+        window.set_anchor(Edge::Left, false);
+        window.set_anchor(Edge::Right, false);
 
-        // Do not yield to compositor exclusive zones (cover the bar)
-        window.set_exclusive_zone(-1);
-        window.set_margin(Edge::Bottom, -80);
+        window.add_css_class("tahoe-launcher-window");
 
-        window.add_css_class("launcher-popup-window");
+        let container = GtkBox::new(Orientation::Vertical, 14);
+        container.add_css_class("tahoe-launcher-container");
+        container.set_size_request(620, 560);
 
-        let key_controller = gtk4::EventControllerKey::new();
-        key_controller.set_propagation_phase(gtk4::PropagationPhase::Capture);
-        let win_c = window.clone();
-        key_controller.connect_key_pressed(move |_, keyval, _, _| {
-            if keyval == gtk4::gdk::Key::Escape {
-                win_c.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
-                crate::services::animation::slide_down_close(&win_c, 56);
-                gtk4::glib::Propagation::Stop
-            } else {
-                gtk4::glib::Propagation::Proceed
+        // --- 1. Tahoe Header (Title + Category Pills) ---
+        let header_box = GtkBox::new(Orientation::Vertical, 10);
+        header_box.add_css_class("tahoe-header-wrapper");
+
+        let title_row = GtkBox::new(Orientation::Horizontal, 8);
+        title_row.set_valign(gtk4::Align::Center);
+
+        let title_icon = Label::new(Some("\u{e5c3}")); // apps icon
+        title_icon.add_css_class("ms-icon");
+        title_icon.add_css_class("tahoe-title-icon");
+        title_row.append(&title_icon);
+
+        let title_lbl = Label::new(Some("Applications"));
+        title_lbl.add_css_class("tahoe-title-text");
+        title_lbl.set_hexpand(true);
+        title_lbl.set_halign(gtk4::Align::Start);
+        title_row.append(&title_lbl);
+
+        header_box.append(&title_row);
+
+        // Category Pills Bar
+        let cat_scroll = ScrolledWindow::new();
+        cat_scroll.set_policy(gtk4::PolicyType::Automatic, gtk4::PolicyType::Never);
+        cat_scroll.add_css_class("tahoe-category-scroll");
+
+        let cat_box = GtkBox::new(Orientation::Horizontal, 6);
+        cat_box.add_css_class("tahoe-category-box");
+
+        let categories = vec![
+            "All Applications",
+            "Development",
+            "Education",
+            "Games",
+            "Graphics",
+            "Internet",
+            "Office",
+            "Settings",
+            "System",
+            "Utilities",
+        ];
+
+        let selected_category = Rc::new(RefCell::new("All Applications".to_string()));
+        let mut category_buttons = Vec::new();
+
+        for cat in &categories {
+            let pill_btn = Button::with_label(cat);
+            pill_btn.add_css_class("tahoe-category-pill");
+            if *cat == "All Applications" {
+                pill_btn.add_css_class("active");
             }
-        });
-        window.add_controller(key_controller);
+            cat_box.append(&pill_btn);
+            category_buttons.push((cat.to_string(), pill_btn));
+        }
 
-        let container = GtkBox::new(Orientation::Vertical, 24);
-        container.add_css_class("launcher-popup-container");
-        container.set_hexpand(true);
-        container.set_vexpand(true);
-        container.set_halign(gtk4::Align::Fill);
-        container.set_valign(gtk4::Align::Fill);
+        cat_scroll.set_child(Some(&cat_box));
+        header_box.append(&cat_scroll);
+        container.append(&header_box);
 
-        // Center search pill at the top
+        // --- 2. Search Input (Interactive & Auto-Focused) ---
         let search_box = GtkBox::new(Orientation::Horizontal, 0);
-        search_box.set_halign(gtk4::Align::Center);
-        search_box.add_css_class("launcher-search-box-wrapper");
+        search_box.add_css_class("tahoe-search-wrapper");
 
         let search_entry = SearchEntry::new();
-        search_entry.add_css_class("launcher-search-pill");
-        search_entry.set_placeholder_text(Some("Search Applications"));
-        search_entry.set_size_request(320, -1);
+        search_entry.add_css_class("tahoe-search-pill");
+        search_entry.set_placeholder_text(Some("Search applications..."));
+        search_entry.set_hexpand(true);
         search_box.append(&search_entry);
         container.append(&search_box);
 
-        // Grid of Apps in a ScrolledWindow (Launchpad Layout)
+        // --- 3. Vertical Scrolled Window Grid (Centered Viewport) ---
         let grid_scroll = ScrolledWindow::new();
         grid_scroll.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Automatic);
+        grid_scroll.set_overlay_scrolling(true);
         grid_scroll.set_vexpand(true);
         grid_scroll.set_hexpand(true);
-        grid_scroll.add_css_class("launcher-grid-scroll");
+        grid_scroll.set_halign(gtk4::Align::Fill);
+        grid_scroll.add_css_class("tahoe-grid-scroll");
 
-        let flowbox = FlowBox::new();
-        flowbox.set_max_children_per_line(8);
-        flowbox.set_min_children_per_line(8);
-        flowbox.set_homogeneous(true);
-        flowbox.set_row_spacing(18);
-        flowbox.set_column_spacing(16);
-        flowbox.set_selection_mode(gtk4::SelectionMode::None);
-        flowbox.set_halign(gtk4::Align::Fill);
-        flowbox.set_hexpand(true);
-        flowbox.add_css_class("launcher-flowbox");
+        let grid = Grid::new();
+        grid.set_column_homogeneous(true);
+        grid.set_row_homogeneous(false);
+        grid.set_row_spacing(14);
+        grid.set_column_spacing(10);
+        grid.set_vexpand(true);
+        grid.set_hexpand(true);
+        grid.set_halign(gtk4::Align::Center);
+        grid.add_css_class("tahoe-app-grid");
 
-        grid_scroll.set_child(Some(&flowbox));
+        // Pre-allocate 60 tiles for vertical scrolling (reduces memory & DOM overhead)
+        let max_tiles = 60;
+        let mut tiles = Vec::with_capacity(max_tiles);
+        let win_c_tile = window.clone();
+
+        for i in 0..max_tiles {
+            let row = (i / 5) as i32;
+            let col = (i % 5) as i32;
+
+            let btn = Button::new();
+            btn.add_css_class("tahoe-app-item");
+            btn.set_size_request(100, -1);
+            btn.set_halign(gtk4::Align::Center);
+            btn.set_valign(gtk4::Align::Center);
+
+            let item_box = GtkBox::new(Orientation::Vertical, 6);
+            item_box.set_valign(gtk4::Align::Center);
+            item_box.set_halign(gtk4::Align::Center);
+
+            let bubble = GtkBox::new(Orientation::Horizontal, 0);
+            bubble.add_css_class("tahoe-icon-bubble");
+            bubble.set_size_request(56, 56);
+            bubble.set_halign(gtk4::Align::Center);
+            bubble.set_valign(gtk4::Align::Center);
+
+            let icon = Image::new();
+            icon.set_pixel_size(40);
+            icon.set_halign(gtk4::Align::Center);
+            icon.set_valign(gtk4::Align::Center);
+            bubble.append(&icon);
+            item_box.append(&bubble);
+
+            let label = Label::new(None);
+            label.add_css_class("tahoe-app-name");
+            label.set_ellipsize(gtk4::pango::EllipsizeMode::End);
+            label.set_max_width_chars(11);
+            label.set_width_chars(11);
+            label.set_size_request(84, -1);
+            label.set_halign(gtk4::Align::Center);
+            item_box.append(&label);
+
+            btn.set_child(Some(&item_box));
+
+            let exec_cmd = Rc::new(RefCell::new(String::new()));
+            let last_icon = Rc::new(RefCell::new(String::new()));
+            let exec_clone = Rc::clone(&exec_cmd);
+            let w_close = win_c_tile.clone();
+
+            btn.connect_clicked(move |_| {
+                let cmd = exec_clone.borrow().clone();
+                if !cmd.is_empty() {
+                    CenterSection::launch_app(&cmd);
+                    w_close.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
+                    w_close.set_visible(false);
+                }
+            });
+
+            grid.attach(&btn, col, row, 1, 1);
+
+            tiles.push(TileWidget {
+                button: btn,
+                icon,
+                label,
+                exec_cmd,
+                last_icon,
+            });
+        }
+
+        grid_scroll.set_child(Some(&grid));
         container.append(&grid_scroll);
-
         window.set_child(Some(&container));
 
         let popup = Self {
             window,
-            flowbox,
             search_entry,
+            tiles,
+            selected_category,
+            category_buttons,
+            grid_scroll,
         };
 
-        popup.build_app_grid();
-        popup.setup_search_handlers();
-
+        popup.setup_handlers();
         popup
     }
 
-    fn build_app_grid(&self) {
+    fn setup_handlers(&self) {
+        let win_focus = self.window.clone();
+        let focus_controller = gtk4::EventControllerFocus::new();
+        focus_controller.connect_enter(move |_| {
+            win_focus.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
+        });
+        self.search_entry.add_controller(focus_controller);
+
+        // Wire search input changes
+        let s_self = self.clone_ref();
+        self.search_entry.connect_search_changed(move |_| {
+            s_self.refresh_grid();
+        });
+
+        // Wire category pill clicks
+        for (cat_name, btn) in &self.category_buttons {
+            let cat_str = cat_name.clone();
+            let c_self = self.clone_ref();
+
+            btn.connect_clicked(move |_| {
+                *c_self.selected_category.borrow_mut() = cat_str.clone();
+
+                // Update active pill UI class
+                for (name, p_btn) in &c_self.category_buttons {
+                    if *name == cat_str {
+                        p_btn.add_css_class("active");
+                    } else {
+                        p_btn.remove_css_class("active");
+                    }
+                }
+
+                c_self.refresh_grid();
+            });
+        }
+    }
+
+    fn clone_ref(&self) -> Self {
+        Self {
+            window: self.window.clone(),
+            search_entry: self.search_entry.clone(),
+            tiles: self.tiles.iter().map(|t| TileWidget {
+                button: t.button.clone(),
+                icon: t.icon.clone(),
+                label: t.label.clone(),
+                exec_cmd: Rc::clone(&t.exec_cmd),
+                last_icon: Rc::clone(&t.last_icon),
+            }).collect(),
+            selected_category: Rc::clone(&self.selected_category),
+            category_buttons: self.category_buttons.clone(),
+            grid_scroll: self.grid_scroll.clone(),
+        }
+    }
+
+    fn refresh_grid(&self) {
         let desktop_entries = CenterSection::scan_desktop_entries();
-        let mut filtered_entries = Vec::new();
+        let sel_cat = self.selected_category.borrow().clone();
+        let query = self.search_entry.text().to_string().to_lowercase();
+
+        let mut filtered = Vec::new();
 
         for entry in desktop_entries.values() {
-            // 1. Filter out helper settings panels (e.g. bluetooth, display panels)
+            // Filter setting helper subpanels
             let is_setting_panel = entry.categories.iter().any(|c| c == "Settings" || c == "X-GNOME-Settings-Panel")
                 && entry.desktop_id != "gnome-control-center.desktop"
                 && entry.desktop_id != "niri-settings.desktop"
@@ -116,133 +290,78 @@ impl LauncherPopup {
                 continue;
             }
 
-            filtered_entries.push(entry.clone());
+            // Category filter logic
+            if sel_cat != "All Applications" {
+                let cat_match = entry.categories.iter().any(|c| {
+                    c.eq_ignore_ascii_case(&sel_cat)
+                        || (sel_cat == "Development" && (c == "Utility" || c == "Development"))
+                        || (sel_cat == "Internet" && (c == "Network" || c == "WebBrowser"))
+                        || (sel_cat == "Utilities" && c == "Utility")
+                });
+                if !cat_match {
+                    continue;
+                }
+            }
+
+            // Search query filter logic
+            if !query.is_empty() {
+                let search_key = format!("{} {}", entry.name.to_lowercase(), entry.exec.to_lowercase());
+                if !search_key.contains(&query) {
+                    continue;
+                }
+            }
+
+            filtered.push(entry);
         }
 
         // Sort alphabetically
-        filtered_entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+        filtered.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
-        let self_win = self.window.clone();
+        // Reset scroll position to top when filtering
+        let vadjust = self.grid_scroll.vadjustment();
+        vadjust.set_value(0.0);
 
-        for entry in filtered_entries {
-            let item_btn = Button::new();
-            item_btn.add_css_class("launcher-app-item");
+        // Update pre-allocated tiles vertically
+        for (i, tile) in self.tiles.iter().enumerate() {
+            if i < filtered.len() {
+                let entry = filtered[i];
+                tile.label.set_text(&entry.name);
+                *tile.exec_cmd.borrow_mut() = entry.exec.clone();
 
-            let item_box = GtkBox::new(Orientation::Vertical, 8);
-            item_box.set_valign(gtk4::Align::Center);
-            item_box.set_halign(gtk4::Align::Center);
+                let icon_str = &entry.icon;
+                if *tile.last_icon.borrow() != *icon_str {
+                    if icon_str.starts_with('/') && std::path::Path::new(icon_str).exists() {
+                        tile.icon.set_from_file(Some(icon_str));
+                    } else {
+                        tile.icon.set_icon_name(Some(icon_str));
+                    }
+                    *tile.last_icon.borrow_mut() = icon_str.clone();
+                }
 
-            let bubble = GtkBox::new(Orientation::Horizontal, 0);
-            bubble.add_css_class("icon-bubble");
-            bubble.set_size_request(72, 72);
-            bubble.set_halign(gtk4::Align::Center);
-            bubble.set_valign(gtk4::Align::Center);
-
-            let icon_str = &entry.icon;
-            let icon = if icon_str.starts_with('/') && std::path::Path::new(icon_str).exists() {
-                Image::from_file(icon_str)
+                tile.button.set_visible(true);
             } else {
-                Image::from_icon_name(icon_str)
-            };
-            icon.set_pixel_size(48);
-            icon.set_halign(gtk4::Align::Center);
-            icon.set_valign(gtk4::Align::Center);
-            icon.set_hexpand(true);
-            icon.set_vexpand(true);
-            bubble.append(&icon);
-            item_box.append(&bubble);
-
-            let name_lbl = Label::new(Some(&entry.name));
-            name_lbl.add_css_class("launcher-app-name");
-            name_lbl.set_ellipsize(gtk4::pango::EllipsizeMode::End);
-            name_lbl.set_max_width_chars(14);
-            name_lbl.set_halign(gtk4::Align::Center);
-            item_box.append(&name_lbl);
-
-            item_btn.set_child(Some(&item_box));
-
-            let exec_cmd = entry.exec.clone();
-            let s_win = self_win.clone();
-
-            item_btn.connect_clicked(move |_| {
-                CenterSection::launch_app(&exec_cmd);
-                s_win.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
-                s_win.set_visible(false);
-            });
-
-            // Wrap in FlowBoxChild and store exec command in its widget name
-            let flow_child = gtk4::FlowBoxChild::new();
-            flow_child.set_child(Some(&item_btn));
-            flow_child.set_widget_name(&entry.exec);
-            self.flowbox.append(&flow_child);
+                tile.button.set_visible(false);
+            }
         }
     }
 
-    fn setup_search_handlers(&self) {
-        let flowbox_c = self.flowbox.clone();
-        self.search_entry.connect_search_changed(move |_| {
-            flowbox_c.invalidate_filter();
-        });
-
-        // Register highly-efficient C-based GTK filter func
-        let search_entry_f = self.search_entry.clone();
-        self.flowbox.set_filter_func(move |child| {
-            let search_text = search_entry_f.text().to_string().to_lowercase();
-            if search_text.is_empty() {
-                return true;
-            }
-
-            let app_name = get_child_text(child);
-            let exec_cmd = child.widget_name().to_string().to_lowercase();
-
-            app_name.contains(&search_text) || exec_cmd.contains(&search_text)
-        });
-
-        // Set keyboard mode to OnDemand ONLY when the search input is focused/clicked
-        let s_ref_focus = self.clone_ref();
-        let focus_controller = gtk4::EventControllerFocus::new();
-        focus_controller.connect_enter(move |_| {
-            s_ref_focus.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
-        });
-        self.search_entry.add_controller(focus_controller);
-    }
-
-    fn clone_ref(&self) -> Self {
-        Self {
-            window: self.window.clone(),
-            flowbox: self.flowbox.clone(),
-            search_entry: self.search_entry.clone(),
+    pub fn close(&self) {
+        if self.window.is_visible() {
+            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
+            crate::services::animation::slide_down_close(&self.window, 56);
         }
     }
 
     pub fn toggle(&self) {
         if self.window.is_visible() {
-            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
-            crate::services::animation::slide_down_close(&self.window, 56);
+            self.close();
         } else {
-            // Keep KeyboardMode::None when launched until search pill is clicked
-            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
+            // Enable keyboard input mode when opening
+            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
             self.search_entry.set_text("");
+            self.refresh_grid();
+            self.search_entry.grab_focus();
             crate::services::animation::slide_up_open(&self.window, 56);
         }
     }
-}
-
-// Traverse the GTK widget tree of a FlowBoxChild to get the text of its app name Label
-fn get_child_text(child: &gtk4::FlowBoxChild) -> String {
-    if let Some(btn) = child.child().and_then(|w| w.downcast::<Button>().ok()) {
-        if let Some(bbox) = btn.child().and_then(|w| w.downcast::<GtkBox>().ok()) {
-            let mut next = bbox.first_child();
-            while let Some(w) = next {
-                let sibling = w.next_sibling();
-                if let Some(lbl) = w.downcast::<Label>().ok() {
-                    if lbl.has_css_class("launcher-app-name") {
-                        return lbl.text().to_string().to_lowercase();
-                    }
-                }
-                next = sibling;
-            }
-        }
-    }
-    String::new()
 }

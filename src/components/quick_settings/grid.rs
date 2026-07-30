@@ -207,6 +207,7 @@ impl GridSection {
     /// Refresh live state asynchronously in background worker thread to ensure 0ms popup presentation
     pub fn async_refresh(grid_rc: Rc<Self>) {
         let (sender, receiver) = mpsc::channel::<(crate::services::network::NetworkState, bool, bool, PowerProfile)>();
+        let (rfd, wfd) = crate::bar::create_event_pipe();
 
         thread::spawn(move || {
             let net_state = NetworkService::get_state();
@@ -215,14 +216,17 @@ impl GridSection {
             let power_prof = PowerProfileService::get_profile();
 
             let _ = sender.send((net_state, bt_on, night_on, power_prof));
+            crate::bar::notify_pipe(wfd);
+            unsafe { libc::close(wfd); }
         });
 
-        glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
+        glib::unix_fd_add_local(rfd, glib::IOCondition::IN, move |fd, _| {
+            crate::bar::drain_pipe(fd);
             if let Ok((net_state, bt_on, night_on, power_prof)) = receiver.try_recv() {
                 // Wi-Fi Tile synchronized with D-Bus
                 if net_state.is_enabled {
                     grid_rc.wifi_btn.add_css_class("active");
-                    if let Some(ssid) = net_state.ssid {
+                    if let Some(ssid) = &net_state.ssid {
                         grid_rc.wifi_title.set_text(&ssid);
                         grid_rc.wifi_sub.set_text("Connected");
                     } else {
@@ -261,11 +265,9 @@ impl GridSection {
                 } else {
                     grid_rc.power_btn.remove_css_class("active");
                 }
-
-                glib::ControlFlow::Break
-            } else {
-                glib::ControlFlow::Continue
             }
+            unsafe { libc::close(fd); }
+            glib::ControlFlow::Break
         });
     }
 

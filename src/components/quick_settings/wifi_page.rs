@@ -126,13 +126,17 @@ impl WifiPage {
 
         let (sender, receiver) = mpsc::channel::<Vec<WifiNetwork>>();
         let list_box_c = list_box.clone();
+        let (rfd, wfd) = crate::bar::create_event_pipe();
 
         thread::spawn(move || {
             let networks = NetworkService::scan_networks();
             let _ = sender.send(networks);
+            crate::bar::notify_pipe(wfd);
+            unsafe { libc::close(wfd); }
         });
 
-        glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
+        glib::unix_fd_add_local(rfd, glib::IOCondition::IN, move |fd, _| {
+            crate::bar::drain_pipe(fd);
             if let Ok(networks) = receiver.try_recv() {
                 // Clear loading label
                 while let Some(child) = list_box_c.first_child() {
@@ -220,55 +224,48 @@ impl WifiPage {
                                 item_container.append(&row_btn);
 
                                 let ssid_conn = net.ssid.clone();
-                                let lb_ref2 = list_box_c.clone();
-                                let saved_lbl_c = saved_lbl.clone();
+                                let lb_ref = list_box_c.clone();
                                 row_btn.connect_clicked(move |_| {
-                                    saved_lbl_c.set_text("Connecting...");
                                     NetworkService::connect_network(&ssid_conn, None);
-                                    let lb_c = lb_ref2.clone();
-                                    glib::timeout_add_seconds_local(3, move || {
+                                    let lb_c = lb_ref.clone();
+                                    glib::timeout_add_seconds_local(2, move || {
                                         Self::refresh_list(&lb_c, true);
                                         glib::ControlFlow::Break
                                     });
                                 });
                             } else {
-                                let lock_lbl = Label::new(Some("\u{e5cf}")); // keyboard_arrow_down
-                                lock_lbl.add_css_class("ms-icon");
-                                lock_lbl.add_css_class("ms-icon-sm");
-                                row.append(&lock_lbl);
-
+                                // Password entry row for WPA/WPA2 networks
                                 let row_btn = Button::new();
                                 row_btn.add_css_class("qs-list-item-btn");
                                 row_btn.set_child(Some(&row));
                                 item_container.append(&row_btn);
 
                                 let pass_box = GtkBox::new(Orientation::Horizontal, 6);
-                                pass_box.add_css_class("qs-pass-box");
+                                pass_box.add_css_class("qs-wifi-pass-box");
                                 pass_box.set_visible(false);
 
                                 let pass_entry = PasswordEntry::new();
-                                pass_entry.add_css_class("qs-pass-input");
-                                pass_entry.set_placeholder_text(Some("Password"));
+                                pass_entry.set_placeholder_text(Some("Enter Wi-Fi Password..."));
                                 pass_entry.set_hexpand(true);
                                 pass_box.append(&pass_entry);
 
                                 let connect_btn = Button::with_label("Connect");
-                                connect_btn.add_css_class("qs-conn-btn");
+                                connect_btn.add_css_class("qs-connect-btn");
 
                                 let ssid_conn = net.ssid.clone();
+                                let entry_ref = pass_entry.clone();
                                 let lb_ref2 = list_box_c.clone();
-                                let p_entry = pass_entry.clone();
                                 let c_btn = connect_btn.clone();
 
                                 connect_btn.connect_clicked(move |_| {
-                                    c_btn.set_label("Connecting...");
-                                    c_btn.set_sensitive(false);
-                                    let pass_text = p_entry.text().to_string();
+                                    let pass_text = entry_ref.text().to_string();
                                     let pass_opt = if pass_text.is_empty() {
                                         None
                                     } else {
                                         Some(pass_text.as_str())
                                     };
+                                    c_btn.set_label("Connecting...");
+                                    c_btn.set_sensitive(false);
                                     NetworkService::connect_network(&ssid_conn, pass_opt);
                                     let lb_c = lb_ref2.clone();
                                     glib::timeout_add_seconds_local(3, move || {
@@ -282,18 +279,8 @@ impl WifiPage {
 
                                 // Toggle password box on row button click
                                 let p_box_toggle = pass_box.clone();
-                                let entry_focus = pass_entry.clone();
-                                row_btn.connect_clicked(move |btn| {
-                                    let is_vis = p_box_toggle.is_visible();
-                                    let new_vis = !is_vis;
-                                    p_box_toggle.set_visible(new_vis);
-                                    if new_vis {
-                                        if let Some(root_win) = btn.root().and_then(|r| r.downcast::<gtk4::ApplicationWindow>().ok()) {
-                                            use gtk4_layer_shell::LayerShell;
-                                            root_win.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
-                                        }
-                                        entry_focus.grab_focus();
-                                    }
+                                row_btn.connect_clicked(move |_| {
+                                    p_box_toggle.set_visible(!p_box_toggle.is_visible());
                                 });
                             }
                         }
@@ -301,10 +288,9 @@ impl WifiPage {
                         list_box_c.append(&item_container);
                     }
                 }
-                glib::ControlFlow::Break
-            } else {
-                glib::ControlFlow::Continue
             }
+            unsafe { libc::close(fd); }
+            glib::ControlFlow::Break
         });
     }
 }

@@ -2,7 +2,6 @@ use crate::services::worker::TaskWorker;
 use std::ffi::CString;
 use std::fs;
 use std::os::unix::ffi::OsStrExt;
-use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -15,6 +14,15 @@ extern "C" {
 
 const IN_CLOEXEC: i32 = 0x80000;
 const IN_MODIFY: u32 = 0x00000002;
+
+struct ListeningGuard;
+impl Drop for ListeningGuard {
+    fn drop(&mut self) {
+        LISTENING.store(false, Ordering::SeqCst);
+    }
+}
+
+static LISTENING: AtomicBool = AtomicBool::new(false);
 
 pub struct BrightnessService;
 
@@ -88,12 +96,12 @@ impl BrightnessService {
     where
         F: FnMut(u32) + Send + 'static,
     {
-        static LISTENING: AtomicBool = AtomicBool::new(false);
         if LISTENING.swap(true, Ordering::SeqCst) {
             return;
         }
 
         thread::spawn(move || unsafe {
+            let _guard = ListeningGuard;
             let fd = inotify_init1(IN_CLOEXEC);
             if fd < 0 {
                 return;

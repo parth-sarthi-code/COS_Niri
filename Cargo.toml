@@ -14,3 +14,4 @@ serde_json = "1.0"
 dirs = "6"
 niri-ipc = "26.4.0"
 image = { version = "0.25.10", default-features = false, features = ["jpeg"] }
+libc = "0.2"

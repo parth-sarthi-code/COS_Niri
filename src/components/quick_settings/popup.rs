@@ -16,8 +16,8 @@ use gtk4::{
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::mpsc;
-use std::time::Duration;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
 pub struct QuickSettingsPopup {
     pub window: ApplicationWindow,
@@ -35,7 +35,7 @@ impl QuickSettingsPopup {
 
         // Configure Layer-Shell popup window
         window.init_layer_shell();
-        window.set_layer(Layer::Overlay);
+        window.set_layer(Layer::Top);
         window.set_namespace("cos-quick-settings");
 
         // Anchor to Bottom-Right floating above the bar shelf
@@ -157,47 +157,41 @@ impl QuickSettingsPopup {
         popup_box.append(&stack);
         window.set_child(Some(&popup_box));
 
-        // --- EVENT LISTENERS (epoll sleep 0.0% CPU) ---
+        // --- EVENT LISTENERS (zero-poll via Unix pipe + epoll) ---
         // 1. Kernel inotify watcher for hardware/software brightness changes
-        let (bright_tx, bright_rx) = mpsc::channel::<u32>();
+        let bright_val = Arc::new(AtomicU32::new(0));
+        let bright_val_w = Arc::clone(&bright_val);
+        let (bright_rfd, bright_wfd) = crate::bar::create_event_pipe();
         BrightnessService::listen_events(move |pct| {
-            let _ = bright_tx.send(pct);
+            bright_val_w.store(pct, Ordering::Relaxed);
+            crate::bar::notify_pipe(bright_wfd);
         });
 
         let s_bright = Rc::clone(&sliders);
-        glib::timeout_add_local(Duration::from_millis(150), move || {
-            let mut last_pct = None;
-            while let Ok(pct) = bright_rx.try_recv() {
-                last_pct = Some(pct);
-            }
-            if let Some(pct) = last_pct {
-                s_bright.set_brightness_val(pct);
-            }
+        glib::unix_fd_add_local(bright_rfd, glib::IOCondition::IN, move |fd, _| {
+            crate::bar::drain_pipe(fd);
+            let pct = bright_val.load(Ordering::Relaxed);
+            s_bright.set_brightness_val(pct);
             glib::ControlFlow::Continue
         });
 
         // 2. PipeWire audio stream listener for hardware volume / mute / sink hotplug events
-        let (audio_tx, audio_rx) = mpsc::channel::<()>();
+        let (audio_rfd, audio_wfd) = crate::bar::create_event_pipe();
         AudioService::listen_events(move || {
-            let _ = audio_tx.send(());
+            crate::bar::notify_pipe(audio_wfd);
         });
 
         let s_audio = Rc::clone(&sliders);
         let ap_sync = Rc::clone(&audio_page);
         let stack_ref = stack.clone();
-        glib::timeout_add_local(Duration::from_millis(150), move || {
-            let mut fired = false;
-            while audio_rx.try_recv().is_ok() {
-                fired = true;
-            }
-            if fired {
-                let (vol, is_muted) = AudioService::get_volume_and_mute();
-                s_audio.set_volume_val(vol, is_muted);
+        glib::unix_fd_add_local(audio_rfd, glib::IOCondition::IN, move |fd, _| {
+            crate::bar::drain_pipe(fd);
+            let (vol, is_muted) = AudioService::get_volume_and_mute();
+            s_audio.set_volume_val(vol, is_muted);
 
-                // Only re-fetch pactl list sinks if Audio sub-page is currently visible
-                if stack_ref.visible_child_name().as_deref() == Some("audio") {
-                    ap_sync.sync_state();
-                }
+            // Only re-fetch pactl list sinks if Audio sub-page is currently visible
+            if stack_ref.visible_child_name().as_deref() == Some("audio") {
+                ap_sync.sync_state();
             }
             glib::ControlFlow::Continue
         });
@@ -213,14 +207,21 @@ impl QuickSettingsPopup {
         }
     }
 
-    /// Toggle visibility of the Quick Settings popup panel with slide animation
-    pub fn toggle(&self) {
+    pub fn close(&self) {
         use gtk4_layer_shell::LayerShell;
         if self.window.is_visible() {
             self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
             crate::services::animation::slide_down_close(&self.window, 56);
+        }
+    }
+
+    /// Toggle visibility of the Quick Settings popup panel with slide animation
+    pub fn toggle(&self) {
+        use gtk4_layer_shell::LayerShell;
+        if self.window.is_visible() {
+            self.close();
         } else {
-            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
+            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
             self.stack.set_visible_child_name("main");
 
             // Refresh sliders & mute status dynamically on panel open
@@ -229,13 +230,13 @@ impl QuickSettingsPopup {
             // 1. Trigger 165Hz slide-up animation IMMEDIATELY with 0 Wayland focus switches
             crate::services::animation::slide_up_open(&self.window, 56);
 
-            // 2. Defer background queries until animation completes (280ms duration)
+            // 2. Defer background queries until animation completes (220ms duration)
             let grid_ref = Rc::clone(&self.grid);
             let batt_ref = self.batt_label.clone();
             let wifi_page_ref = Rc::clone(&self.wifi_page);
             let audio_page_ref = Rc::clone(&self.audio_page);
 
-            glib::timeout_add_local_once(std::time::Duration::from_millis(280), move || {
+            glib::timeout_add_local_once(std::time::Duration::from_millis(220), move || {
                 let batt_info = BatteryService::get_info();
                 let batt_str = if batt_info.is_present {
                     format!("{}% - {}", batt_info.capacity, batt_info.status)

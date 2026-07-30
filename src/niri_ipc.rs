@@ -3,8 +3,6 @@ use niri_ipc::{Action, Event, Request, Response, Window, Workspace, WorkspaceRef
 use std::thread;
 
 pub type NiriWorkspace = Workspace;
-pub type NiriEvent = Event;
-pub type NiriWindow = Window;
 
 pub struct NiriIpcClient;
 

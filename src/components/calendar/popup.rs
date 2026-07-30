@@ -18,7 +18,7 @@ impl CalendarPopup {
 
         // Configure Layer-Shell popup window
         window.init_layer_shell();
-        window.set_layer(Layer::Overlay);
+        window.set_layer(Layer::Top);
         window.set_namespace("cos-calendar");
 
         // Anchor to Bottom-Right floating above the bar shelf (aligned next to date pill)
@@ -226,10 +226,18 @@ impl CalendarPopup {
         }
     }
 
+    pub fn close(&self) {
+        if self.window.is_visible() {
+            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::None);
+            crate::services::animation::slide_down_close(&self.window, 56);
+        }
+    }
+
     pub fn toggle(&self) {
         if self.window.is_visible() {
-            crate::services::animation::slide_down_close(&self.window, 56);
+            self.close();
         } else {
+            self.window.set_keyboard_mode(gtk4_layer_shell::KeyboardMode::OnDemand);
             self.go_today();
             crate::services::animation::slide_up_open(&self.window, 56);
         }
