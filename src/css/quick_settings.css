@@ -304,3 +304,47 @@ label.qs-subpage-empty {
     color: #938f99;
     padding: 20px;
 }
+
+/* --- System Tray Menu Popovers --- */
+popover.qs-popup-popover {
+    background-color: transparent;
+    padding: 0;
+}
+
+popover.qs-popup-popover contents {
+    background-color: rgba(18, 19, 26, 0.85);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    padding: 6px;
+    color: #e3e2e6;
+}
+
+popover.qs-popup-popover arrow {
+    background-color: rgba(18, 19, 26, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+/* Sub-menu and list item overrides inside tray popover */
+popover.qs-popup-popover button.qs-list-item-btn {
+    background-image: none;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    min-height: 36px;
+    box-shadow: none;
+    color: #e3e2e6;
+    transition: background-color 120ms ease;
+}
+
+popover.qs-popup-popover button.qs-list-item-btn:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Thin clean menu separator */
+separator.shelf-sep {
+    background-color: rgba(255, 255, 255, 0.08);
+    min-height: 1px;
+    margin: 4px 8px;
+}

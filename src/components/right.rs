@@ -133,30 +133,7 @@ impl RightSection {
                                 menu_box.set_margin_top(4);
                                 menu_box.set_margin_bottom(4);
 
-                                for entry in entries {
-                                    if entry.is_separator {
-                                        let sep = gtk4::Separator::new(Orientation::Horizontal);
-                                        sep.add_css_class("shelf-sep");
-                                        menu_box.append(&sep);
-                                    } else {
-                                        let m_btn = Button::new();
-                                        m_btn.add_css_class("qs-subpage-item-btn");
-
-                                        let label = Label::new(Some(&entry.label));
-                                        label.set_halign(gtk4::Align::Start);
-                                        label.add_css_class("qs-subpage-item-title");
-                                        m_btn.set_child(Some(&label));
-
-                                        let id_click = id.clone();
-                                        let menu_id = entry.menu_id;
-                                        let pop_close = pop.clone();
-                                        m_btn.connect_clicked(move |_| {
-                                            TrayService::global().send_menu_event(&id_click, menu_id, "clicked");
-                                            pop_close.popdown();
-                                        });
-                                        menu_box.append(&m_btn);
-                                    }
-                                }
+                                Self::append_menu_entries(&menu_box, entries, &id, &pop, 0);
 
                                 glib::idle_add_local(move || {
                                     pop.set_child(Some(&menu_box));
@@ -189,30 +166,7 @@ impl RightSection {
                             menu_box.set_margin_top(4);
                             menu_box.set_margin_bottom(4);
 
-                            for entry in entries {
-                                if entry.is_separator {
-                                    let sep = gtk4::Separator::new(Orientation::Horizontal);
-                                    sep.add_css_class("shelf-sep");
-                                    menu_box.append(&sep);
-                                } else {
-                                    let m_btn = Button::new();
-                                    m_btn.add_css_class("qs-subpage-item-btn");
-
-                                    let label = Label::new(Some(&entry.label));
-                                    label.set_halign(gtk4::Align::Start);
-                                    label.add_css_class("qs-subpage-item-title");
-                                    m_btn.set_child(Some(&label));
-
-                                    let id_click = id.clone();
-                                    let menu_id = entry.menu_id;
-                                    let pop_close = pop.clone();
-                                    m_btn.connect_clicked(move |_| {
-                                        TrayService::global().send_menu_event(&id_click, menu_id, "clicked");
-                                        pop_close.popdown();
-                                    });
-                                    menu_box.append(&m_btn);
-                                }
-                            }
+                            Self::append_menu_entries(&menu_box, entries, &id, &pop, 0);
 
                             glib::idle_add_local(move || {
                                 pop.set_child(Some(&menu_box));
@@ -508,5 +462,52 @@ impl RightSection {
         let gbytes = glib::Bytes::from_owned(rgba);
         let pixbuf = Pixbuf::from_bytes(&gbytes, Colorspace::Rgb, true, 8, width, height, stride);
         Some(gdk::Texture::for_pixbuf(&pixbuf))
+    }
+
+    fn append_menu_entries(
+        menu_box: &GtkBox,
+        entries: Vec<crate::services::tray::TrayMenuEntry>,
+        id: &str,
+        pop: &gtk4::Popover,
+        indent: i32,
+    ) {
+        for entry in entries {
+            if entry.is_separator {
+                let sep = gtk4::Separator::new(Orientation::Horizontal);
+                sep.add_css_class("shelf-sep");
+                if indent > 0 {
+                    sep.set_margin_start(indent + 12);
+                }
+                menu_box.append(&sep);
+            } else if !entry.label.trim().is_empty() {
+                let m_btn = Button::new();
+                m_btn.add_css_class("qs-list-item-btn");
+                if indent > 0 {
+                    m_btn.set_margin_start(indent);
+                }
+
+                let label = Label::new(Some(&entry.label));
+                label.set_halign(gtk4::Align::Start);
+                m_btn.set_child(Some(&label));
+
+                let id_click = id.to_string();
+                let menu_id = entry.menu_id;
+                let pop_close = pop.clone();
+                let has_children = !entry.children.is_empty();
+
+                m_btn.connect_clicked(move |_| {
+                    if !has_children {
+                        TrayService::global().send_menu_event(&id_click, menu_id, "clicked");
+                        pop_close.popdown();
+                    }
+                });
+
+                menu_box.append(&m_btn);
+
+                if !entry.children.is_empty() {
+                    Self::append_menu_entries(menu_box, entry.children, id, pop, indent + 16);
+                }
+            }
+        }
     }
 }
