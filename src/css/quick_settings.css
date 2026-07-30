@@ -1,0 +1,306 @@
+/* === QUICK SETTINGS POPUP PANEL (ChromeOS Glassmorphism) === */
+window.qs-popup-window {
+    background-color: transparent;
+    border-radius: 24px;
+}
+
+box.qs-popup-container {
+    background-color: rgba(18, 19, 26, 0.72);
+    border-radius: 24px;
+    padding: 20px 24px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: none;
+    font-family: "Roboto", sans-serif;
+    color: #e3e2e6;
+}
+
+/* Separator lines */
+separator.qs-sep {
+    background-color: rgba(255, 255, 255, 0.08);
+    min-height: 1px;
+    margin: 8px 0;
+}
+
+/* --- High-Specificity GTK Button Resets --- */
+box.qs-popup-container button {
+    background-image: none;
+    border: none;
+    box-shadow: none;
+}
+
+/* --- Quick Settings Header --- */
+box.qs-header {
+    min-height: 36px;
+}
+
+box.qs-avatar-bubble {
+    background-color: rgba(255, 255, 255, 0.10);
+    border-radius: 50%;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    margin: 0;
+}
+
+box.qs-popup-container button.qs-signout-btn {
+    background-color: rgba(255, 255, 255, 0.10);
+    border-radius: 14px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #ffffff;
+    transition: background-color 150ms ease;
+}
+
+box.qs-popup-container button.qs-signout-btn:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+box.qs-popup-container button.qs-header-icon-btn {
+    background-color: rgba(255, 255, 255, 0.10);
+    border-radius: 50%;
+    min-width: 34px;
+    min-height: 34px;
+    padding: 0;
+    color: #e3e2e6;
+    transition: background-color 150ms ease;
+}
+
+box.qs-popup-container button.qs-header-icon-btn label {
+    color: #e3e2e6;
+}
+
+box.qs-popup-container button.qs-header-icon-btn:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+/* --- Quick Settings Feature Grid --- */
+grid.qs-grid {
+    margin: 10px 0;
+}
+
+box.qs-tile {
+    padding: 4px;
+}
+
+box.qs-popup-container button.qs-tile-bubble {
+    background-color: rgba(255, 255, 255, 0.10);
+    color: #e3e2e6;
+    border-radius: 50%;
+    min-width: 52px;
+    min-height: 52px;
+    padding: 0;
+    transition: all 180ms ease;
+}
+
+box.qs-popup-container button.qs-tile-bubble label {
+    color: inherit;
+}
+
+box.qs-popup-container button.qs-tile-bubble:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Active Material You Pastel Blue Tile */
+box.qs-popup-container button.qs-tile-bubble.active {
+    background-color: @primary;
+    color: @on-primary;
+}
+
+box.qs-popup-container button.qs-tile-bubble.active label {
+    color: @on-primary;
+}
+
+label.qs-tile-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: #e3e2e6;
+    margin-top: 2px;
+}
+
+label.qs-tile-sub {
+    font-size: 11px;
+    color: #938f99;
+}
+
+box.qs-popup-container button.qs-tile-arrow {
+    background: none;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+    color: #c4c6d0;
+}
+
+/* --- Sliders Section --- */
+box.qs-sliders-section {
+    margin: 6px 0;
+}
+
+box.qs-popup-container button.qs-slider-icon-btn,
+box.qs-popup-container button.qs-slider-arrow-btn {
+    background-color: rgba(255, 255, 255, 0.10);
+    border-radius: 50%;
+    min-width: 34px;
+    min-height: 34px;
+    padding: 0;
+    color: #e3e2e6;
+    transition: background-color 150ms ease;
+}
+
+box.qs-popup-container button.qs-slider-icon-btn label,
+box.qs-popup-container button.qs-slider-arrow-btn label {
+    color: #e3e2e6;
+}
+
+box.qs-popup-container button.qs-slider-icon-btn:hover,
+box.qs-popup-container button.qs-slider-arrow-btn:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+scale.qs-slider trough {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 3px;
+    min-height: 6px;
+    border: none;
+    box-shadow: none;
+}
+
+scale.qs-slider highlight {
+    background-color: @primary;
+    border-radius: 3px;
+    min-height: 6px;
+    border: none;
+}
+
+scale.qs-slider slider {
+    background-color: transparent;
+    border-radius: 50%;
+    min-width: 0px;
+    min-height: 0px;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    transition: all 150ms ease;
+}
+
+scale.qs-slider:hover slider,
+scale.qs-slider:active slider {
+    background-color: #ffffff;
+    min-width: 10px;
+    min-height: 10px;
+    margin: -2px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* --- Footer --- */
+box.qs-footer {
+    min-height: 28px;
+    margin-top: 6px;
+}
+
+label.qs-footer-text {
+    font-size: 12px;
+    color: #c4c6d0;
+}
+
+label.qs-footer-sep {
+    font-size: 12px;
+    color: #49454f;
+    margin: 0 4px;
+}
+
+/* --- Sub-pages --- */
+box.qs-subpage {
+    padding: 4px 0;
+}
+
+box.qs-subpage-header {
+    min-height: 36px;
+    margin-bottom: 8px;
+}
+
+label.qs-subpage-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+box.qs-subpage-list {
+    margin-top: 4px;
+}
+
+/* --- Wi-Fi Item Cards --- */
+box.qs-wifi-item-card {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 6px 10px;
+    margin: 2px 0;
+}
+
+box.qs-list-item-row {
+    padding: 6px 8px;
+    border-radius: 10px;
+}
+
+button.qs-list-item-btn {
+    background-image: none;
+    background: none;
+    border: none;
+    border-radius: 10px;
+    padding: 0;
+    box-shadow: none;
+    color: #ffffff;
+}
+
+button.qs-list-item-btn:hover {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+button.qs-disc-btn {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #ffffff;
+    border: none;
+    box-shadow: none;
+}
+
+button.qs-disc-btn:hover {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.22);
+}
+
+box.qs-pass-box {
+    margin-top: 6px;
+    padding: 4px;
+}
+
+passwordentry.qs-pass-input, entry.qs-pass-input {
+    background-color: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 12px;
+    color: #ffffff;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+passwordentry.qs-pass-input text, entry.qs-pass-input text {
+    color: #ffffff;
+}
+
+passwordentry.qs-pass-input:focus, entry.qs-pass-input:focus {
+    border-color: #a8c7fa;
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+label.qs-subpage-empty {
+    font-size: 13px;
+    color: #938f99;
+    padding: 20px;
+}

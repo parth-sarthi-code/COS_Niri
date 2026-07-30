@@ -8,7 +8,11 @@ use gtk4::gdk::Display;
 use gtk4::prelude::*;
 use gtk4::{style_context_add_provider_for_display, Application, CssProvider};
 
-const STYLE_CSS: &str = include_str!("style.css");
+const COMMON_CSS: &str = include_str!("css/common.css");
+const BAR_CSS: &str = include_str!("css/bar.css");
+const QUICK_SETTINGS_CSS: &str = include_str!("css/quick_settings.css");
+const CALENDAR_CSS: &str = include_str!("css/calendar.css");
+const LAUNCHER_CSS: &str = include_str!("css/launcher.css");
 
 thread_local! {
     static CSS_PROVIDER: CssProvider = CssProvider::new();
@@ -70,7 +74,11 @@ fn load_css() {
         );
     }
 
-    css_content.push_str(STYLE_CSS);
+    css_content.push_str(COMMON_CSS);
+    css_content.push_str(BAR_CSS);
+    css_content.push_str(QUICK_SETTINGS_CSS);
+    css_content.push_str(CALENDAR_CSS);
+    css_content.push_str(LAUNCHER_CSS);
 
     CSS_PROVIDER.with(|provider| {
         provider.load_from_string(&css_content);

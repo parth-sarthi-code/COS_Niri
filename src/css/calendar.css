@@ -1,0 +1,105 @@
+/* === CALENDAR POPUP PANEL (ChromeOS Glassmorphism) === */
+window.cal-popup-window {
+    background-color: transparent;
+    border-radius: 24px;
+}
+
+box.cal-popup-container {
+    background-color: @surface;
+    border-radius: 24px;
+    padding: 20px 24px;
+    border: 1px solid @outline;
+    box-shadow: none;
+    font-family: "Roboto", sans-serif;
+    color: @text-primary;
+}
+
+/* Header */
+label.cal-month-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: @text-primary;
+}
+
+button.cal-today-btn {
+    background-image: none;
+    background-color: @surface-variant;
+    border-radius: 14px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: @text-primary;
+    border: none;
+    box-shadow: none;
+}
+
+button.cal-today-btn:hover {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+button.cal-nav-btn {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+    color: @text-primary;
+    border: none;
+    box-shadow: none;
+}
+
+button.cal-nav-btn label {
+    color: @text-primary;
+}
+
+button.cal-nav-btn:hover {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+/* Days of Week Header Grid */
+grid.cal-dow-grid {
+    margin-bottom: 8px;
+}
+
+label.cal-dow-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: @text-secondary;
+}
+
+/* Day Cells */
+button.cal-day-cell {
+    background-image: none;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    min-width: 42px;
+    min-height: 42px;
+    padding: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: @text-primary;
+    box-shadow: none;
+    transition: background-color 150ms ease;
+}
+
+button.cal-day-cell.cal-active-month:hover {
+    background-image: none;
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Today Active Bubble */
+button.cal-day-cell.cal-today {
+    background-image: none;
+    background-color: @primary;
+    color: @on-primary;
+    font-weight: 700;
+    border-radius: 50%;
+}
+
+button.cal-day-cell.cal-other-month {
+    opacity: 0.25;
+}

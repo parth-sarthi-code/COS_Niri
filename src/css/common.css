@@ -1,0 +1,115 @@
+/* ====================================================
+   ChromeOS Niri Bar — Common Resets & Styles
+   Icon font:  Material Symbols Rounded
+   UI font:    Roboto
+   ==================================================== */
+
+/* --- Targeted element resets ----------------------- */
+window.cos-bar-window,
+box.cos-bar-container,
+box.left-section,
+box.center-section,
+box.right-section,
+box.workspace-container,
+box.qs-pill-inner,
+box.icon-bubble,
+box.launcher-bubble,
+box.dot-active,
+box.dot-running,
+box.dot-hidden {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-family: "Roboto", "Cantarell", sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: #e3e2e6;
+}
+
+button.dock-item,
+button.icon-btn-circle,
+button.launcher-btn,
+button.ws-pill,
+button.qs-pill {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-family: "Roboto", "Cantarell", sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: #e3e2e6;
+}
+
+label {
+    font-family: "Roboto", "Cantarell", sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: #e3e2e6;
+}
+
+/* --- Material Symbols Icon Labels (Filled FILL=1) -- */
+label.ms-icon {
+    font-family: "Material Symbols Rounded";
+    font-size: 20px;
+    font-weight: 400;
+    color: #e3e2e6;
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+label.ms-icon-sm {
+    font-size: 17px;
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+/* === SLEEK & MINIMAL SWITCH STYLING === */
+switch {
+    background-color: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 14px;
+    min-width: 44px;
+    min-height: 24px;
+    padding: 0;
+    margin: 0;
+    transition: all 180ms ease;
+    outline: none;
+}
+
+switch:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+switch:checked {
+    background-color: @primary;
+    border-color: @primary;
+}
+
+switch:checked:hover {
+    background-color: @primary;
+    opacity: 0.95;
+}
+
+switch slider {
+    background-color: @text-primary;
+    border-radius: 50%;
+    min-width: 16px;
+    min-height: 16px;
+    margin: 3px;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    transition: all 180ms cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+switch:checked slider {
+    background-color: @on-primary;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* === CLICK CATCHER WINDOW STYLING === */
+.click-catcher-window,
+.click-catcher-overlay {
+    background-color: rgba(0, 0, 0, 0.005);
+    border: none;
+    box-shadow: none;
+}
