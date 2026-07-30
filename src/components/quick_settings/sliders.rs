@@ -116,7 +116,9 @@ impl SlidersSection {
         self.vol_scale.set_value(vol);
 
         let icon = if AudioService::is_muted() { "\u{e04f}" } else { "\u{e050}" };
-        self.vol_label.set_text(icon);
+        if self.vol_label.text() != icon {
+            self.vol_label.set_text(icon);
+        }
 
         let bright = BrightnessService::get_brightness() as f64;
         self.bright_scale.set_value(bright);
@@ -136,7 +138,9 @@ impl SlidersSection {
         self.is_updating.set(true);
         self.vol_scale.set_value(pct as f64);
         let icon = if is_muted { "\u{e04f}" } else { "\u{e050}" };
-        self.vol_label.set_text(icon);
+        if self.vol_label.text() != icon {
+            self.vol_label.set_text(icon);
+        }
         self.is_updating.set(false);
     }
 }

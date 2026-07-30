@@ -142,16 +142,28 @@ impl RightSection {
 
         glib::timeout_add_local_once(std::time::Duration::from_secs(secs_to_next_min as u64), move || {
             let n = Local::now();
-            clock_c.set_text(&n.format("%H:%M").to_string());
-            date_c.set_text(&n.format("%b %-d").to_string());
+            let clock_str = n.format("%H:%M").to_string();
+            let date_str = n.format("%b %-d").to_string();
+            if clock_c.text() != clock_str {
+                clock_c.set_text(&clock_str);
+            }
+            if date_c.text() != date_str {
+                date_c.set_text(&date_str);
+            }
 
             // Single recurring 60-second timer (no stacking)
             let c_c = clock_c.clone();
             let d_c = date_c.clone();
             glib::timeout_add_seconds_local(60, move || {
                 let inner_n = Local::now();
-                c_c.set_text(&inner_n.format("%H:%M").to_string());
-                d_c.set_text(&inner_n.format("%b %-d").to_string());
+                let c_str = inner_n.format("%H:%M").to_string();
+                let d_str = inner_n.format("%b %-d").to_string();
+                if c_c.text() != c_str {
+                    c_c.set_text(&c_str);
+                }
+                if d_c.text() != d_str {
+                    d_c.set_text(&d_str);
+                }
                 glib::ControlFlow::Continue
             });
         });
@@ -159,7 +171,10 @@ impl RightSection {
         // 2. Battery: Lightweight 30-second sysfs check (0 process forks)
         let batt_c = batt_icon.clone();
         glib::timeout_add_seconds_local(30, move || {
-            batt_c.set_text(Self::get_battery_icon_code());
+            let code = Self::get_battery_icon_code();
+            if batt_c.text() != code {
+                batt_c.set_text(code);
+            }
             glib::ControlFlow::Continue
         });
 
@@ -176,13 +191,17 @@ impl RightSection {
     /// Refresh main bar shelf Wi-Fi icon dynamically on D-Bus event
     pub fn update_network_state(&self) {
         let code = Self::get_wifi_icon_code();
-        self.wifi_icon.set_text(code);
+        if self.wifi_icon.text() != code {
+            self.wifi_icon.set_text(code);
+        }
     }
 
     /// Update Bluetooth icon visibility and glyph based on connection state
     fn update_bt_icon(label: &Label) {
         if !BluetoothService::is_bluetooth_enabled() {
-            label.set_visible(false);
+            if label.is_visible() {
+                label.set_visible(false);
+            }
             return;
         }
 
@@ -190,11 +209,18 @@ impl RightSection {
         let any_connected = devices.iter().any(|d| d.is_connected);
 
         if any_connected {
-            label.set_text("\u{e1aa}"); // bluetooth_connected (U+E1AA)
-            label.set_visible(true);
+            let icon = "\u{e1aa}"; // bluetooth_connected (U+E1AA)
+            if label.text() != icon {
+                label.set_text(icon);
+            }
+            if !label.is_visible() {
+                label.set_visible(true);
+            }
         } else {
             // BT is on but nothing connected — hide from the pill to save space
-            label.set_visible(false);
+            if label.is_visible() {
+                label.set_visible(false);
+            }
         }
     }
 
