@@ -102,7 +102,16 @@ impl WifiPage {
         let is_on = NetworkService::is_wifi_enabled();
         self.toggle_switch.set_active(is_on);
         if is_on {
-            NetworkService::request_scan();
+            static LAST_SCAN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            let last = LAST_SCAN.load(std::sync::atomic::Ordering::Relaxed);
+            if now.saturating_sub(last) >= 15 {
+                NetworkService::request_scan();
+                LAST_SCAN.store(now, std::sync::atomic::Ordering::Relaxed);
+            }
         }
         Self::refresh_list(&self.list_box, is_on);
     }

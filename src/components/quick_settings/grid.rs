@@ -224,46 +224,73 @@ impl GridSection {
             crate::bar::drain_pipe(fd);
             if let Ok((net_state, bt_on, night_on, power_prof)) = receiver.try_recv() {
                 // Wi-Fi Tile synchronized with D-Bus
-                if net_state.is_enabled {
+                let wifi_active = net_state.is_enabled;
+                let has_wifi_active = grid_rc.wifi_btn.has_css_class("active");
+                if wifi_active && !has_wifi_active {
                     grid_rc.wifi_btn.add_css_class("active");
+                } else if !wifi_active && has_wifi_active {
+                    grid_rc.wifi_btn.remove_css_class("active");
+                }
+
+                let (w_title, w_sub) = if wifi_active {
                     if let Some(ssid) = &net_state.ssid {
-                        grid_rc.wifi_title.set_text(&ssid);
-                        grid_rc.wifi_sub.set_text("Connected");
+                        (ssid.as_str(), "Connected")
                     } else {
-                        grid_rc.wifi_title.set_text("Wi-Fi");
-                        grid_rc.wifi_sub.set_text("Disconnected");
+                        ("Wi-Fi", "Disconnected")
                     }
                 } else {
-                    grid_rc.wifi_btn.remove_css_class("active");
-                    grid_rc.wifi_title.set_text("Wi-Fi");
-                    grid_rc.wifi_sub.set_text("Off");
+                    ("Wi-Fi", "Off")
+                };
+
+                if grid_rc.wifi_title.text() != w_title {
+                    grid_rc.wifi_title.set_text(w_title);
+                }
+                if grid_rc.wifi_sub.text() != w_sub {
+                    grid_rc.wifi_sub.set_text(w_sub);
                 }
 
                 // Bluetooth Tile
-                if bt_on {
+                let has_bt_active = grid_rc.bt_btn.has_css_class("active");
+                if bt_on && !has_bt_active {
                     grid_rc.bt_btn.add_css_class("active");
-                    grid_rc.bt_sub.set_text("On");
-                } else {
+                } else if !bt_on && has_bt_active {
                     grid_rc.bt_btn.remove_css_class("active");
-                    grid_rc.bt_sub.set_text("Off");
+                }
+
+                let bt_text = if bt_on { "On" } else { "Off" };
+                if grid_rc.bt_sub.text() != bt_text {
+                    grid_rc.bt_sub.set_text(bt_text);
                 }
 
                 // Night Light Tile
-                if night_on {
+                let has_night_active = grid_rc.night_btn.has_css_class("active");
+                if night_on && !has_night_active {
                     grid_rc.night_btn.add_css_class("active");
-                    grid_rc.night_sub.set_text("On");
-                } else {
+                } else if !night_on && has_night_active {
                     grid_rc.night_btn.remove_css_class("active");
-                    grid_rc.night_sub.set_text("Off");
+                }
+
+                let night_text = if night_on { "On" } else { "Off" };
+                if grid_rc.night_sub.text() != night_text {
+                    grid_rc.night_sub.set_text(night_text);
                 }
 
                 // Power Profile Tile
-                grid_rc.power_icon.set_text(power_prof.icon_code());
-                grid_rc.power_sub.set_text(power_prof.display_name());
-                if power_prof != PowerProfile::Balanced {
+                let power_active = power_prof != PowerProfile::Balanced;
+                let has_power_active = grid_rc.power_btn.has_css_class("active");
+                if power_active && !has_power_active {
                     grid_rc.power_btn.add_css_class("active");
-                } else {
+                } else if !power_active && has_power_active {
                     grid_rc.power_btn.remove_css_class("active");
+                }
+
+                let p_icon = power_prof.icon_code();
+                if grid_rc.power_icon.text() != p_icon {
+                    grid_rc.power_icon.set_text(p_icon);
+                }
+                let p_name = power_prof.display_name();
+                if grid_rc.power_sub.text() != p_name {
+                    grid_rc.power_sub.set_text(p_name);
                 }
             }
             unsafe { libc::close(fd); }

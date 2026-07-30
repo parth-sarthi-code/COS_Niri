@@ -24,8 +24,10 @@ pub struct QuickSettingsPopup {
     pub stack: Stack,
     pub grid: Rc<GridSection>,
     pub sliders: Rc<SlidersSection>,
+    #[allow(dead_code)]
     pub audio_page: Rc<AudioPage>,
     pub batt_label: Label,
+    #[allow(dead_code)]
     pub wifi_page: Rc<WifiPage>,
 }
 
@@ -233,8 +235,6 @@ impl QuickSettingsPopup {
             // 2. Defer background queries until animation completes (220ms duration)
             let grid_ref = Rc::clone(&self.grid);
             let batt_ref = self.batt_label.clone();
-            let wifi_page_ref = Rc::clone(&self.wifi_page);
-            let audio_page_ref = Rc::clone(&self.audio_page);
 
             glib::timeout_add_local_once(std::time::Duration::from_millis(220), move || {
                 let batt_info = BatteryService::get_info();
@@ -245,8 +245,6 @@ impl QuickSettingsPopup {
                 };
                 batt_ref.set_text(&batt_str);
                 GridSection::async_refresh(grid_ref);
-                wifi_page_ref.sync_state();
-                audio_page_ref.sync_state();
             });
         }
     }
