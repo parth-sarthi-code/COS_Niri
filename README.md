@@ -79,7 +79,7 @@ cargo build --release
 ```
 
 ### 3. Run Bar on Startup
-Configure Niri to spawn it automatically in `/home/predator/.config/niri/config.kdl` (or `rules.kdl`):
+Configure Niri to spawn it automatically in `~/.config/niri/config.kdl` (or `rules.kdl`):
 ```kdl
 spawn-at-startup "cos-niri-bar"
 ```
@@ -167,16 +167,16 @@ layer-rule {
 ---
 
 ## Nautilus Integration
-Add a Nautilus script to `/home/predator/.local/share/nautilus/scripts/Set as Wallpaper` to automatically trigger matugen and update your desktop theme:
+Add a Nautilus script to `~/.local/share/nautilus/scripts/Set as Wallpaper` to automatically trigger matugen and update your desktop theme:
 ```bash
 #!/usr/bin/env bash
 SELECTED_FILE="${1:-$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}"
 SELECTED_FILE=$(echo "$SELECTED_FILE" | head -n 1)
 
 if [ -f "$SELECTED_FILE" ]; then
-    cp "$SELECTED_FILE" "/home/predator/.config/background"
+    cp "$SELECTED_FILE" "$HOME/.config/background"
     pkill swaybg
-    nohup swaybg -i "/home/predator/.config/background" -m fill >/dev/null 2>&1 &
+    nohup swaybg -i "$HOME/.config/background" -m fill >/dev/null 2>&1 &
     
     # Trigger theme generation on cos-niri-bar
     pkill -USR1 cos-niri-bar || true
