@@ -224,13 +224,27 @@ impl BarWindow {
 
         let qs_net = Rc::clone(&quick_settings);
         let right_net = Rc::clone(&right_section);
+        let net_debounce = Rc::new(RefCell::new(None::<glib::SourceId>));
         glib::unix_fd_add_local(net_read_fd, glib::IOCondition::IN, move |fd, _| {
             drain_pipe(fd);
-            right_net.update_network_state();
-            if qs_net.window.is_visible() && qs_net.stack.visible_child_name().as_deref() == Some("wifi") {
-                qs_net.wifi_page.sync_state();
+            
+            let qs_net_c = Rc::clone(&qs_net);
+            let right_net_c = Rc::clone(&right_net);
+            let net_debounce_c = Rc::clone(&net_debounce);
+            
+            if let Some(source_id) = net_debounce_c.borrow_mut().take() {
+                source_id.remove();
             }
-            GridSection::async_refresh(Rc::clone(&qs_net.grid));
+            
+            let new_source_id = glib::timeout_add_local_once(std::time::Duration::from_millis(50), move || {
+                right_net_c.update_network_state();
+                if qs_net_c.window.is_visible() && qs_net_c.stack.visible_child_name().as_deref() == Some("wifi") {
+                    qs_net_c.wifi_page.sync_state();
+                }
+                GridSection::async_refresh(Rc::clone(&qs_net_c.grid));
+            });
+            
+            *net_debounce_c.borrow_mut() = Some(new_source_id);
             glib::ControlFlow::Continue
         });
 
@@ -242,13 +256,27 @@ impl BarWindow {
 
         let qs_bt = Rc::clone(&quick_settings);
         let right_bt = Rc::clone(&right_section);
+        let bt_debounce = Rc::new(RefCell::new(None::<glib::SourceId>));
         glib::unix_fd_add_local(bt_read_fd, glib::IOCondition::IN, move |fd, _| {
             drain_pipe(fd);
-            right_bt.update_bluetooth_state();
-            if qs_bt.window.is_visible() && qs_bt.stack.visible_child_name().as_deref() == Some("bt") {
-                qs_bt.bt_page.sync_state();
+            
+            let qs_bt_c = Rc::clone(&qs_bt);
+            let right_bt_c = Rc::clone(&right_bt);
+            let bt_debounce_c = Rc::clone(&bt_debounce);
+            
+            if let Some(source_id) = bt_debounce_c.borrow_mut().take() {
+                source_id.remove();
             }
-            GridSection::async_refresh(Rc::clone(&qs_bt.grid));
+            
+            let new_source_id = glib::timeout_add_local_once(std::time::Duration::from_millis(50), move || {
+                right_bt_c.update_bluetooth_state();
+                if qs_bt_c.window.is_visible() && qs_bt_c.stack.visible_child_name().as_deref() == Some("bt") {
+                    qs_bt_c.bt_page.sync_state();
+                }
+                GridSection::async_refresh(Rc::clone(&qs_bt_c.grid));
+            });
+            
+            *bt_debounce_c.borrow_mut() = Some(new_source_id);
             glib::ControlFlow::Continue
         });
 

@@ -231,8 +231,20 @@ impl LauncherPopup {
 
         // Wire search input changes
         let s_self = self.clone_ref();
+        let search_debounce = Rc::new(RefCell::new(None::<glib::SourceId>));
         self.search_entry.connect_search_changed(move |_| {
-            s_self.refresh_grid();
+            let s_clone = s_self.clone_ref();
+            let debounce_c = Rc::clone(&search_debounce);
+            
+            if let Some(source_id) = debounce_c.borrow_mut().take() {
+                source_id.remove();
+            }
+            
+            let new_source_id = glib::timeout_add_local_once(std::time::Duration::from_millis(100), move || {
+                s_clone.refresh_grid();
+            });
+            
+            *debounce_c.borrow_mut() = Some(new_source_id);
         });
 
         // Wire category pill clicks
