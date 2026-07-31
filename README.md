@@ -56,8 +56,8 @@ This shell supports **all major Linux distributions** running NetworkManager (te
 
 ## Resource Consumption
 * **CPU (Idle)**: **0.0%** (zero busy polling; fully event-driven using D-Bus events, `pactl subscribe`, and line-buffered stdout pipes).
-* **Resident RAM (RSS)**: **~144 MB**
-* **Shared Memory (SHR)**: **~74 MB**
+* **Resident RAM (RSS)**: **~125.3 MB**
+* **Virtual Memory (VSZ)**: **~3922.8 MB**
 
 ---
 
