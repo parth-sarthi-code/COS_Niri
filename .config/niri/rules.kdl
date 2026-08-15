@@ -234,4 +234,9 @@ window-rule {
     open-floating true
     default-column-width { fixed 840; }
     default-window-height { fixed 560; }
+    background-effect {
+        blur true
+        noise 0.03
+        saturation 1.6
+    }
 }

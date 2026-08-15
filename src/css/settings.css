@@ -9,7 +9,7 @@ window.settings-window {
 }
 
 headerbar.settings-headerbar {
-    background-color: @surface;
+    background-color: transparent;
     border-bottom: 1px solid @outline;
     min-height: 44px;
     padding: 0 12px;
@@ -30,7 +30,7 @@ window.settings-window button {
 
 /* --- Main Layout ------------------------------------ */
 box.settings-main-container {
-    background-color: @surface;
+    background-color: transparent;
     font-family: "Roboto", sans-serif;
     color: @text-primary;
 }
