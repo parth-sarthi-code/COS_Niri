@@ -33,7 +33,7 @@ log_info "Checking system dependencies..."
 
 if command -v pacman >/dev/null 2>&1; then
     MISSING_PKGS=()
-    PKGS=("gtk4" "gtk4-layer-shell" "fontconfig" "adwaita-icon-theme" "hicolor-icon-theme")
+    PKGS=("gtk4" "gtk4-layer-shell" "fontconfig" "adwaita-icon-theme" "hicolor-icon-theme" "fuzzel")
 
     for pkg in "${PKGS[@]}"; do
         if ! pacman -Q "$pkg" >/dev/null 2>&1; then
@@ -49,9 +49,51 @@ if command -v pacman >/dev/null 2>&1; then
         log_success "All system dependencies are already installed."
     fi
 elif command -v dnf >/dev/null 2>&1; then
-    log_info "Fedora system detected. Ensure 'gtk4-devel' and 'gtk4-layer-shell-devel' are installed."
+    log_info "Fedora system detected. Ensure 'gtk4-devel', 'gtk4-layer-shell-devel', and 'fuzzel' are installed."
 elif command -v apt-get >/dev/null 2>&1; then
-    log_info "Debian/Ubuntu detected. Ensure 'libgtk-4-dev' and 'libgtk4-layer-shell-dev' are installed."
+    log_info "Debian/Ubuntu detected. Ensure 'libgtk-4-dev', 'libgtk4-layer-shell-dev', and 'fuzzel' are installed."
+fi
+
+# Check & Install Matugen (Material You dynamic theming engine)
+if command -v matugen >/dev/null 2>&1; then
+    log_success "matugen is already installed ($(matugen --version 2>/dev/null || echo 'installed'))."
+else
+    log_info "matugen not found. Installing matugen..."
+    MATUGEN_INSTALLED=0
+    if command -v pacman >/dev/null 2>&1 && pacman -Si matugen >/dev/null 2>&1; then
+        sudo pacman -S --needed --noconfirm matugen && MATUGEN_INSTALLED=1
+    elif command -v yay >/dev/null 2>&1; then
+        yay -S --needed --noconfirm matugen-bin 2>/dev/null && MATUGEN_INSTALLED=1
+    elif command -v paru >/dev/null 2>&1; then
+        paru -S --needed --noconfirm matugen-bin 2>/dev/null && MATUGEN_INSTALLED=1
+    fi
+
+    if [ "$MATUGEN_INSTALLED" -eq 0 ] && command -v cargo >/dev/null 2>&1; then
+        log_info "Installing matugen via cargo..."
+        cargo install matugen && MATUGEN_INSTALLED=1
+    fi
+
+    if [ "$MATUGEN_INSTALLED" -eq 0 ]; then
+        log_info "Downloading pre-compiled matugen binary from GitHub..."
+        mkdir -p "${INSTALL_BIN_DIR}"
+        MATUGEN_TMP=$(mktemp -d)
+        MATUGEN_URL="https://github.com/InioX/matugen/releases/latest/download/matugen-x86_64-unknown-linux-gnu.tar.gz"
+        if curl -sSL -o "${MATUGEN_TMP}/matugen.tar.gz" "$MATUGEN_URL" 2>/dev/null; then
+            tar -xzf "${MATUGEN_TMP}/matugen.tar.gz" -C "${INSTALL_BIN_DIR}" matugen 2>/dev/null || tar -xzf "${MATUGEN_TMP}/matugen.tar.gz" -C "${INSTALL_BIN_DIR}"
+            chmod +x "${INSTALL_BIN_DIR}/matugen" 2>/dev/null || true
+            if [ -f "${INSTALL_BIN_DIR}/matugen" ]; then
+                MATUGEN_INSTALLED=1
+                log_success "matugen binary installed to ${INSTALL_BIN_DIR}/matugen"
+            fi
+        fi
+        rm -rf "${MATUGEN_TMP}"
+    fi
+
+    if [ "$MATUGEN_INSTALLED" -eq 1 ]; then
+        log_success "matugen setup complete."
+    else
+        log_warn "Could not auto-install matugen. You can install it manually: cargo install matugen"
+    fi
 fi
 
 # ------------------------------------------------------------------------------
@@ -144,6 +186,20 @@ if [ ! -f "${CONFIG_DIR}/colors.css" ]; then
 EOF
 fi
 
+if [ ! -f "${CONFIG_DIR}/fuzzel-colors.ini" ]; then
+    log_info "Creating default Fuzzel palette at ${CONFIG_DIR}/fuzzel-colors.ini..."
+    cat > "${CONFIG_DIR}/fuzzel-colors.ini" << 'EOF'
+[colors]
+background=12131aff
+text=ffffffff
+match=b4c5ffff
+selection=252836ff
+selection-text=b4c5ffff
+selection-match=d0bcffff
+border=353846ff
+EOF
+fi
+
 # ------------------------------------------------------------------------------
 # 5. Backup Old Niri Configuration & Deploy COS Niri Configs
 # ------------------------------------------------------------------------------
@@ -190,6 +246,8 @@ else
     done
     mkdir -p "${NIRI_DIR}/scripts"
     curl -sSL -o "${NIRI_DIR}/scripts/fuzzel-power.sh" "${GITHUB_RAW}/.config/niri/scripts/fuzzel-power.sh"
+    mkdir -p "$HOME/.config/fuzzel"
+    curl -sSL -o "$HOME/.config/fuzzel/fuzzel.ini" "${GITHUB_RAW}/.config/fuzzel/fuzzel.ini"
 fi
 
 # Replace any template paths with current user's $HOME
@@ -221,6 +279,7 @@ echo -e "${BOLD}${GREEN}  Setup Complete!${NC}"
 echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo -e "• Previous Niri config backup: ${BOLD}${NIRI_DIR}/backup.zip${NC}"
 echo -e "• New COS Niri configuration:  ${BOLD}${NIRI_DIR}/${NC}"
+echo -e "• Fuzzel Launcher config:      ${BOLD}$HOME/.config/fuzzel/fuzzel.ini${NC}"
 echo -e "• Dynamic theme colors:        ${BOLD}${CONFIG_DIR}/colors.css${NC}"
 echo -e "• Fonts installed:             ${BOLD}${INSTALL_FONT_DIR}/${NC}"
 echo -e "• Binary installed:            ${BOLD}${TARGET_BIN}${NC}\n"
