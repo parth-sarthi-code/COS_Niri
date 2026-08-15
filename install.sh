@@ -33,7 +33,7 @@ log_info "Checking system dependencies..."
 
 if command -v pacman >/dev/null 2>&1; then
     MISSING_PKGS=()
-    PKGS=("gtk4" "gtk4-layer-shell" "fontconfig" "adwaita-icon-theme" "hicolor-icon-theme" "fuzzel")
+    PKGS=("gtk4" "gtk4-layer-shell" "fontconfig" "adwaita-icon-theme" "hicolor-icon-theme" "fuzzel" "swaybg")
 
     for pkg in "${PKGS[@]}"; do
         if ! pacman -Q "$pkg" >/dev/null 2>&1; then
@@ -49,9 +49,9 @@ if command -v pacman >/dev/null 2>&1; then
         log_success "All system dependencies are already installed."
     fi
 elif command -v dnf >/dev/null 2>&1; then
-    log_info "Fedora system detected. Ensure 'gtk4-devel', 'gtk4-layer-shell-devel', and 'fuzzel' are installed."
+    log_info "Fedora system detected. Ensure 'gtk4-devel', 'gtk4-layer-shell-devel', 'fuzzel', and 'swaybg' are installed."
 elif command -v apt-get >/dev/null 2>&1; then
-    log_info "Debian/Ubuntu detected. Ensure 'libgtk-4-dev', 'libgtk4-layer-shell-dev', and 'fuzzel' are installed."
+    log_info "Debian/Ubuntu detected. Ensure 'libgtk-4-dev', 'libgtk4-layer-shell-dev', 'fuzzel', and 'swaybg' are installed."
 fi
 
 # Check & Install Matugen (Material You dynamic theming engine)
@@ -198,6 +198,38 @@ selection-text=b4c5ffff
 selection-match=d0bcffff
 border=353846ff
 EOF
+fi
+
+if [ ! -f "${CONFIG_DIR}/settings.json" ]; then
+    log_info "Creating default Settings config at ${CONFIG_DIR}/settings.json..."
+    cat > "${CONFIG_DIR}/settings.json" << 'EOF'
+{
+  "theme": {
+    "scheme": "scheme-tonal-spot",
+    "dark_mode": true
+  },
+  "performance": {
+    "renderer": "vulkan",
+    "launcher_backend": "builtin"
+  },
+  "pinned_apps": [
+    { "name": "Google Chrome", "desktop_id": "google-chrome.desktop" },
+    { "name": "Firefox", "desktop_id": "firefox.desktop" },
+    { "name": "Files", "desktop_id": "org.gnome.Nautilus.desktop" },
+    { "name": "VS Code", "desktop_id": "code.desktop" },
+    { "name": "Telegram", "desktop_id": "org.telegram.desktop.desktop" }
+  ]
+}
+EOF
+fi
+
+# Ensure ~/.config/background exists so swaybg and Settings preview have an initial image
+if [ ! -f "$HOME/.config/background" ]; then
+    SYSTEM_WALLPAPER=$(find /usr/share/backgrounds /usr/share/wallpapers -type f \( -name "*.jpg" -o -name "*.png" -o -name "*.webp" \) 2>/dev/null | head -n 1)
+    if [ -n "$SYSTEM_WALLPAPER" ]; then
+        log_info "Setting initial wallpaper from ${SYSTEM_WALLPAPER}..."
+        cp "$SYSTEM_WALLPAPER" "$HOME/.config/background"
+    fi
 fi
 
 # ------------------------------------------------------------------------------
