@@ -35,13 +35,11 @@ fn main() {
         i += 1;
     }
 
-    // Configure GSK_RENDERER if set in settings and not overridden by user env
-    if std::env::var("GSK_RENDERER").is_err() {
-        let perf = services::settings::SettingsService::get_performance();
-        if !perf.renderer.is_empty() {
-            std::env::set_var("GSK_RENDERER", &perf.renderer);
-            eprintln!("[main] Using GSK_RENDERER={}", perf.renderer);
-        }
+    // Configure GSK_RENDERER from settings.json
+    let perf = services::settings::SettingsService::get_performance();
+    if !perf.renderer.is_empty() {
+        std::env::set_var("GSK_RENDERER", &perf.renderer);
+        eprintln!("[main] Using GSK_RENDERER={}", perf.renderer);
     }
 
     // Generate/initialize Material You theme colors from wallpaper using matugen

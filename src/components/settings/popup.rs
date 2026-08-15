@@ -1046,22 +1046,33 @@ impl SettingsPopup {
         }
     }
 
-    /// Relaunches the cos-niri-bar process in-place using POSIX execve so the Linux kernel
-    /// completely wipes the old virtual address space, graphics driver mappings, and heap allocations.
+    /// Relaunches the cos-niri-bar process in a detached session and terminates the current process,
+    /// allowing the Wayland layer-shell surface to unbind before the new process connects with the new GSK_RENDERER.
     fn restart_with_settings_page(page: &str) {
         let page_str = page.to_string();
-        eprintln!("[settings] Restarting cos-niri-bar in-place via exec to apply new GSK_RENDERER and reopening page '{}'...", page_str);
+        eprintln!("[settings] Restarting cos-niri-bar to apply new GSK_RENDERER and reopening page '{}'...", page_str);
 
         let exe_path = std::env::current_exe().unwrap_or_else(|_| {
             dirs::home_dir().unwrap_or_default().join(".local/bin/cos-niri-bar")
         });
 
-        use std::os::unix::process::CommandExt;
-        let mut cmd = std::process::Command::new(&exe_path);
-        cmd.arg("--open-settings").arg(page_str);
+        unsafe {
+            use std::os::unix::process::CommandExt;
+            let mut cmd = std::process::Command::new("sh");
+            cmd.args([
+                "-c",
+                &format!("sleep 0.15; exec '{}' --open-settings '{}'", exe_path.display(), page_str),
+            ])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .pre_exec(|| {
+                libc::setsid();
+                Ok(())
+            });
+            let _ = cmd.spawn();
+        }
 
-        let err = cmd.exec();
-        eprintln!("[settings] Failed to exec replacement process: {}", err);
         std::process::exit(0);
     }
 }
