@@ -130,10 +130,11 @@ fi
 
 # Method B: Direct GitHub Releases API
 if [ "$DOWNLOADED" -eq 0 ]; then
-    RELEASE_JSON=$(curl -4 -s "https://api.github.com/repos/${REPO}/releases/latest")
+    RELEASE_JSON=$(curl -4 -s "https://api.github.com/repos/${REPO}/releases")
     DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o 'https://[^"]*releases/download/[^"]*/cos-niri-bar' | head -n 1)
 
     if [ -n "$DOWNLOAD_URL" ]; then
+        log_info "Downloading binary from: ${DOWNLOAD_URL}"
         curl -4 -sSL --retry 3 --retry-delay 1 -o "${TEMP_DIR}/cos-niri-bar" "$DOWNLOAD_URL"
         DOWNLOADED=1
     fi
