@@ -5,15 +5,37 @@ use gtk4::{Box as GtkBox, Button, Image, Orientation};
 use niri_ipc::Window;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ffi::CString;
 use std::fs;
 use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::rc::Rc;
-use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, OnceLock};
 
 extern "C" {
     fn setsid() -> i32;
+    fn inotify_init1(flags: i32) -> i32;
+    fn inotify_add_watch(fd: i32, pathname: *const i8, mask: u32) -> i32;
+    fn read(fd: i32, buf: *mut std::ffi::c_void, count: usize) -> isize;
+}
+
+const IN_CLOEXEC: i32 = 0x80000;
+const IN_CREATE: u32 = 0x00000100;
+const IN_DELETE: u32 = 0x00000200;
+const IN_MODIFY: u32 = 0x00000002;
+const IN_MOVED_TO: u32 = 0x00000080;
+const IN_MOVED_FROM: u32 = 0x00000040;
+
+/// Dirty flag for desktop entry cache — starts true to trigger initial scan
+static DESKTOP_ENTRIES_DIRTY: AtomicBool = AtomicBool::new(true);
+static DESKTOP_ENTRIES_CACHE: OnceLock<Mutex<HashMap<String, DesktopEntry>>> = OnceLock::new();
+static WATCHER_STARTED: AtomicBool = AtomicBool::new(false);
+
+// Icon texture cache — avoids repeated GTK icon theme lookups for the same icon name
+thread_local! {
+    static ICON_CACHE: RefCell<HashMap<String, gtk4::IconPaintable>> = RefCell::new(HashMap::new());
 }
 
 #[derive(Debug, Clone)]
@@ -126,7 +148,7 @@ impl CenterSection {
         let mut pinned_widgets = Vec::new();
 
         for config in pinned_configs {
-            let widget = Self::create_pinned_widget(config, desktop_entries);
+            let widget = Self::create_pinned_widget(config, &desktop_entries);
             container.append(&widget.button);
             pinned_widgets.push(widget);
         }
@@ -333,7 +355,7 @@ impl CenterSection {
                 let mut new_pinned_widgets = Vec::new();
 
                 for config in pinned_configs {
-                    let widget = Self::create_pinned_widget(config, desktop_entries);
+                    let widget = Self::create_pinned_widget(config, &desktop_entries);
                     state.container.append(&widget.button);
                     new_pinned_widgets.push(widget);
                 }
@@ -354,12 +376,20 @@ impl CenterSection {
         });
     }
 
-    /// Scan XDG directories once at startup (cached in memory)
-    pub fn scan_desktop_entries() -> &'static HashMap<String, DesktopEntry> {
-        static DESKTOP_ENTRIES_CACHE: OnceLock<HashMap<String, DesktopEntry>> = OnceLock::new();
+    /// Scan XDG application directories. Uses a Mutex-guarded cache with inotify-driven
+    /// dirty-flag invalidation: O(0) filesystem I/O when no apps have been installed/removed.
+    pub fn scan_desktop_entries() -> std::sync::MutexGuard<'static, HashMap<String, DesktopEntry>> {
+        // Ensure the inotify watcher thread is started exactly once
+        if !WATCHER_STARTED.swap(true, Ordering::SeqCst) {
+            Self::start_desktop_watcher();
+        }
 
-        DESKTOP_ENTRIES_CACHE.get_or_init(|| {
-            let mut entries = HashMap::new();
+        let cache = DESKTOP_ENTRIES_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+        let mut guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+
+        if DESKTOP_ENTRIES_DIRTY.swap(false, Ordering::SeqCst) {
+            // Re-scan all XDG application directories
+            guard.clear();
             let home = std::env::var("HOME").unwrap_or_default();
 
             let search_paths: Vec<PathBuf> = vec![
@@ -376,15 +406,62 @@ impl CenterSection {
                         let file_path = entry.path();
                         if file_path.extension().and_then(|s| s.to_str()) == Some("desktop") {
                             if let Some(desktop_entry) = Self::parse_desktop_file(&file_path) {
-                                entries.insert(desktop_entry.desktop_id.clone(), desktop_entry);
+                                guard.insert(desktop_entry.desktop_id.clone(), desktop_entry);
                             }
                         }
                     }
                 }
             }
 
-            entries
-        })
+            // Clear icon cache when desktop entries change (icons may have changed)
+            ICON_CACHE.with(|cache| cache.borrow_mut().clear());
+
+            eprintln!("[center] Desktop entry cache refreshed: {} entries", guard.len());
+        }
+
+        guard
+    }
+
+    /// Spawn a background inotify watcher thread monitoring XDG application directories.
+    /// Sets DESKTOP_ENTRIES_DIRTY=true on any file create/delete/modify/move events.
+    fn start_desktop_watcher() {
+        std::thread::spawn(move || unsafe {
+            let fd = inotify_init1(IN_CLOEXEC);
+            if fd < 0 {
+                eprintln!("[center] Failed to initialize inotify for desktop watcher");
+                return;
+            }
+
+            let home = std::env::var("HOME").unwrap_or_default();
+            let watch_dirs = [
+                "/usr/share/applications".to_string(),
+                "/usr/local/share/applications".to_string(),
+                format!("{home}/.local/share/applications"),
+                "/var/lib/flatpak/exports/share/applications".to_string(),
+                format!("{home}/.local/share/flatpak/exports/share/applications"),
+            ];
+
+            let mask = IN_CREATE | IN_DELETE | IN_MODIFY | IN_MOVED_TO | IN_MOVED_FROM;
+
+            for dir in &watch_dirs {
+                if Path::new(dir).is_dir() {
+                    if let Ok(c_path) = CString::new(dir.as_bytes()) {
+                        inotify_add_watch(fd, c_path.as_ptr(), mask);
+                    }
+                }
+            }
+
+            let mut buffer = [0u8; 4096];
+
+            // Kernel blocks with 0.0% CPU until a .desktop file event occurs
+            loop {
+                let bytes_read = read(fd, buffer.as_mut_ptr() as *mut std::ffi::c_void, buffer.len());
+                if bytes_read <= 0 {
+                    break;
+                }
+                DESKTOP_ENTRIES_DIRTY.store(true, Ordering::SeqCst);
+            }
+        });
     }
 
     /// Parse single .desktop file with specifier stripping
@@ -664,7 +741,7 @@ impl CenterSection {
         });
     }
 
-    /// Construct GTK dock button nodes
+    /// Construct GTK dock button nodes with icon texture caching
     fn create_dock_button_nodes(icon_str: &str, tooltip: &str) -> (Button, GtkBox) {
         let dock_btn = Button::new();
         dock_btn.add_css_class("dock-item");
@@ -685,7 +762,33 @@ impl CenterSection {
         let icon = if icon_str.starts_with('/') && Path::new(icon_str).exists() {
             Image::from_file(icon_str)
         } else {
-            Image::from_icon_name(icon_str)
+            // Try cached icon paintable first
+            let cached = ICON_CACHE.with(|cache| {
+                cache.borrow().get(icon_str).cloned()
+            });
+
+            if let Some(paintable) = cached {
+                Image::from_paintable(Some(&paintable))
+            } else {
+                // Resolve via icon theme and cache the result
+                if let Some(display) = gdk::Display::default() {
+                    let icon_theme = gtk4::IconTheme::for_display(&display);
+                    let paintable = icon_theme.lookup_icon(
+                        icon_str,
+                        &[],   // no fallback names
+                        24,
+                        1,     // scale factor
+                        gtk4::TextDirection::None,
+                        gtk4::IconLookupFlags::empty(),
+                    );
+                    ICON_CACHE.with(|cache| {
+                        cache.borrow_mut().insert(icon_str.to_string(), paintable.clone());
+                    });
+                    Image::from_paintable(Some(&paintable))
+                } else {
+                    Image::from_icon_name(icon_str)
+                }
+            }
         };
 
         icon.set_pixel_size(24);

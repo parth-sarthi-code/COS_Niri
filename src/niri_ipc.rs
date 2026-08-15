@@ -1,6 +1,5 @@
 use niri_ipc::socket::Socket;
 use niri_ipc::{Action, Event, Request, Response, Window, Workspace, WorkspaceReferenceArg};
-use std::thread;
 
 pub type NiriWorkspace = Workspace;
 
@@ -55,7 +54,7 @@ impl NiriIpcClient {
 
     /// Asynchronously request workspace focus by workspace ID so GTK main loop never blocks.
     pub fn focus_workspace_id(id: u64) {
-        thread::spawn(move || {
+        crate::services::worker::TaskWorker::dispatch(move || {
             if let Ok(mut socket) = Socket::connect() {
                 let action = Action::FocusWorkspace {
                     reference: WorkspaceReferenceArg::Id(id),
@@ -67,7 +66,7 @@ impl NiriIpcClient {
 
     /// Asynchronously request workspace focus by 1-based index.
     pub fn focus_workspace_index(idx: u8) {
-        thread::spawn(move || {
+        crate::services::worker::TaskWorker::dispatch(move || {
             if let Ok(mut socket) = Socket::connect() {
                 let action = Action::FocusWorkspace {
                     reference: WorkspaceReferenceArg::Index(idx),
@@ -79,7 +78,7 @@ impl NiriIpcClient {
 
     /// Focus a window by ID.
     pub fn focus_window(id: u64) {
-        thread::spawn(move || {
+        crate::services::worker::TaskWorker::dispatch(move || {
             if let Ok(mut socket) = Socket::connect() {
                 let action = Action::FocusWindow { id };
                 let _ = socket.send(Request::Action(action));

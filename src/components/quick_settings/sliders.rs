@@ -58,7 +58,7 @@ impl SlidersSection {
                 let now = std::time::Instant::now();
                 let elapsed = now.duration_since(vol_last_time.get());
 
-                if elapsed >= std::time::Duration::from_millis(50) {
+                if elapsed >= std::time::Duration::from_millis(30) {
                     if let Some(source_id) = vol_pending.borrow_mut().take() {
                         source_id.remove();
                     }
@@ -69,7 +69,7 @@ impl SlidersSection {
                         let pending_clone = Rc::clone(&vol_pending);
                         let val_clone = Rc::clone(&vol_last_val);
                         let time_clone = Rc::clone(&vol_last_time);
-                        let source_id = glib::timeout_add_local_once(std::time::Duration::from_millis(50), move || {
+                        let source_id = glib::timeout_add_local_once(std::time::Duration::from_millis(30), move || {
                             let final_val = val_clone.get();
                             AudioService::set_volume(final_val);
                             time_clone.set(std::time::Instant::now());
@@ -125,7 +125,7 @@ impl SlidersSection {
                 let now = std::time::Instant::now();
                 let elapsed = now.duration_since(bright_last_time.get());
 
-                if elapsed >= std::time::Duration::from_millis(50) {
+                if elapsed >= std::time::Duration::from_millis(30) {
                     if let Some(source_id) = bright_pending.borrow_mut().take() {
                         source_id.remove();
                     }
@@ -136,7 +136,7 @@ impl SlidersSection {
                         let pending_clone = Rc::clone(&bright_pending);
                         let val_clone = Rc::clone(&bright_last_val);
                         let time_clone = Rc::clone(&bright_last_time);
-                        let source_id = glib::timeout_add_local_once(std::time::Duration::from_millis(50), move || {
+                        let source_id = glib::timeout_add_local_once(std::time::Duration::from_millis(30), move || {
                             let final_val = val_clone.get();
                             BrightnessService::set_brightness(final_val);
                             time_clone.set(std::time::Instant::now());
