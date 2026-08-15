@@ -166,7 +166,7 @@ for font in "${FONTS[@]}"; do
         cp "${REPO_DIR}/fonts/${font}" "${INSTALL_FONT_DIR}/${font}"
     else
         log_info "Downloading ${font}..."
-        curl -sSL -o "${INSTALL_FONT_DIR}/${font}" "${GITHUB_RAW}/fonts/${font}"
+        curl -sSL --retry 3 --retry-delay 1 -o "${INSTALL_FONT_DIR}/${font}" "${GITHUB_RAW}/fonts/${font}"
     fi
 done
 
@@ -287,11 +287,11 @@ else
     log_info "Fetching Niri configs from GitHub..."
     NIRI_FILES=("animations.kdl" "binds.kdl" "colors.kdl" "config.kdl" "environment.kdl" "input.kdl" "layout.kdl" "misc.kdl" "outputs.kdl" "rules.kdl" "startup.kdl")
     for f in "${NIRI_FILES[@]}"; do
-        curl -sSL -o "${NIRI_DIR}/${f}" "${GITHUB_RAW}/.config/niri/${f}"
+        curl -sSL --retry 3 --retry-delay 1 -o "${NIRI_DIR}/${f}" "${GITHUB_RAW}/.config/niri/${f}"
     done
-    curl -sSL -o "${NIRI_DIR}/scripts/fuzzel-power.sh" "${GITHUB_RAW}/.config/niri/scripts/fuzzel-power.sh"
-    curl -sSL -o "$HOME/.config/fuzzel/fuzzel.ini" "${GITHUB_RAW}/.config/fuzzel/fuzzel.ini"
-    curl -sSL -o "$HOME/.local/share/nautilus/scripts/Set as Wallpaper" "${GITHUB_RAW}/.config/nautilus/scripts/Set%20as%20Wallpaper"
+    curl -sSL --retry 3 --retry-delay 1 -o "${NIRI_DIR}/scripts/fuzzel-power.sh" "${GITHUB_RAW}/.config/niri/scripts/fuzzel-power.sh"
+    curl -sSL --retry 3 --retry-delay 1 -o "$HOME/.config/fuzzel/fuzzel.ini" "${GITHUB_RAW}/.config/fuzzel/fuzzel.ini"
+    curl -sSL --retry 3 --retry-delay 1 -o "$HOME/.local/share/nautilus/scripts/Set as Wallpaper" "${GITHUB_RAW}/.config/nautilus/scripts/Set%20as%20Wallpaper"
 fi
 
 # Ensure executable permissions on all scripts
