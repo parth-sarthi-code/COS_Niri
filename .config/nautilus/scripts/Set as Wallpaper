@@ -9,15 +9,15 @@ SELECTED_FILE=$(echo "$SELECTED_FILE" | head -n 1)
 
 if [ -f "$SELECTED_FILE" ]; then
     # Overwrite the persistent background file if it's different
-    if [ "$SELECTED_FILE" != "/home/predator/.config/background" ]; then
-        cp "$SELECTED_FILE" "/home/predator/.config/background"
+    if [ "$SELECTED_FILE" != "$HOME/.config/background" ]; then
+        cp "$SELECTED_FILE" "$HOME/.config/background"
     fi
 
     # Kill the existing wallpaper daemon
     pkill swaybg
     
     # Start swaybg, detached completely from Nautilus
-    nohup swaybg -i "/home/predator/.config/background" -m fill >/dev/null 2>&1 &
+    nohup swaybg -i "$HOME/.config/background" -m fill >/dev/null 2>&1 &
     
     # Trigger theme hot-reload on cos-niri-bar
     pkill -USR1 cos-niri-bar || true
