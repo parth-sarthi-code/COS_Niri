@@ -30,6 +30,7 @@ impl SettingsPopup {
     fn build_window(
         app: &Application,
         win_holder: Rc<RefCell<Option<ApplicationWindow>>>,
+        initial_page: Option<&str>,
     ) -> ApplicationWindow {
         // Create a standard GTK4 Application Window (Windowed App, NOT a Layer-Shell overlay)
         let window = ApplicationWindow::builder()
@@ -93,9 +94,12 @@ impl SettingsPopup {
         stack.add_named(&performance_page, Some("performance"));
         stack.add_named(&pinned_page, Some("pinned"));
 
+        let initial_page_name = initial_page.unwrap_or("appearance");
+        stack.set_visible_child_name(initial_page_name);
+
         // --- Left Sidebar ---
         let nav_buttons = Rc::new(RefCell::new(Vec::new()));
-        let sidebar = Self::build_sidebar(&stack_rc, &nav_buttons);
+        let sidebar = Self::build_sidebar(&stack_rc, &nav_buttons, initial_page_name);
         main_box.append(&sidebar);
 
         // Sidebar Separator
@@ -120,6 +124,7 @@ impl SettingsPopup {
     fn build_sidebar(
         stack_rc: &Rc<RefCell<Stack>>,
         nav_buttons: &Rc<RefCell<Vec<(String, Button)>>>,
+        initial_page_name: &str,
     ) -> GtkBox {
         let sidebar = GtkBox::new(Orientation::Vertical, 4);
         sidebar.add_css_class("settings-sidebar");
@@ -135,7 +140,7 @@ impl SettingsPopup {
         for (id, icon_code, label_text) in nav_items {
             let btn = Button::new();
             btn.add_css_class("settings-sidebar-btn");
-            if id == "appearance" {
+            if id == initial_page_name {
                 btn.add_css_class("active");
             }
 
@@ -747,13 +752,20 @@ impl SettingsPopup {
             let id_str = id.to_string();
             let eb_ref = Rc::clone(&engine_buttons);
             btn.connect_clicked(move |_| {
-                SettingsService::set_renderer(&id_str);
-                for (eid, eb) in eb_ref.borrow().iter() {
-                    if eid == &id_str {
-                        eb.add_css_class("active");
-                    } else {
-                        eb.remove_css_class("active");
+                let current_rend = SettingsService::get_performance().renderer;
+                if current_rend != id_str {
+                    SettingsService::set_renderer(&id_str);
+                    for (eid, eb) in eb_ref.borrow().iter() {
+                        if eid == &id_str {
+                            eb.add_css_class("active");
+                        } else {
+                            eb.remove_css_class("active");
+                        }
                     }
+
+                    // Completely restart the bar process to tear down old graphics device context
+                    // and initialize the newly selected GSK_RENDERER cleanly from OS startup.
+                    Self::restart_with_settings_page("performance");
                 }
             });
 
@@ -1002,11 +1014,15 @@ impl SettingsPopup {
     }
 
     pub fn show(&self) {
+        self.show_page("appearance");
+    }
+
+    pub fn show_page(&self, page_name: &str) {
         let mut win_slot = self.window.borrow_mut();
         if let Some(ref win) = *win_slot {
             win.present();
         } else {
-            let win = Self::build_window(&self.app, Rc::clone(&self.window));
+            let win = Self::build_window(&self.app, Rc::clone(&self.window), Some(page_name));
             win.present();
             *win_slot = Some(win);
         }
@@ -1024,9 +1040,37 @@ impl SettingsPopup {
             }
         } else {
             // Spawn on demand
-            let win = Self::build_window(&self.app, Rc::clone(&self.window));
+            let win = Self::build_window(&self.app, Rc::clone(&self.window), None);
             win.present();
             *win_slot = Some(win);
         }
+    }
+
+    /// Relaunches the cos-niri-bar process in a detached session and terminates the current process,
+    /// cleanly resetting all graphics contexts and reopening the Settings window to the specified tab.
+    fn restart_with_settings_page(page: &str) {
+        let page_str = page.to_string();
+        eprintln!("[settings] Restarting cos-niri-bar to apply new GSK_RENDERER and reopening page '{}'...", page_str);
+
+        let exe_path = std::env::current_exe().unwrap_or_else(|_| {
+            dirs::home_dir().unwrap_or_default().join(".local/bin/cos-niri-bar")
+        });
+
+        unsafe {
+            use std::os::unix::process::CommandExt;
+            let mut cmd = std::process::Command::new(&exe_path);
+            cmd.arg("--open-settings")
+                .arg(page_str)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .pre_exec(|| {
+                    libc::setsid();
+                    Ok(())
+                });
+            let _ = cmd.spawn();
+        }
+
+        std::process::exit(0);
     }
 }

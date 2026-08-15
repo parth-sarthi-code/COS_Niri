@@ -20,6 +20,21 @@ thread_local! {
 }
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let mut initial_settings_page: Option<String> = None;
+    let mut i = 1;
+    while i < args.len() {
+        if args[i] == "--open-settings" {
+            if i + 1 < args.len() {
+                initial_settings_page = Some(args[i + 1].clone());
+                i += 1;
+            } else {
+                initial_settings_page = Some("appearance".to_string());
+            }
+        }
+        i += 1;
+    }
+
     // Configure GSK_RENDERER if set in settings and not overridden by user env
     if std::env::var("GSK_RENDERER").is_err() {
         let perf = services::settings::SettingsService::get_performance();
@@ -58,12 +73,16 @@ fn main() {
         load_css();
     });
 
-    app.connect_activate(|app| {
+    let init_page = initial_settings_page.clone();
+    app.connect_activate(move |app| {
         let bar = BarWindow::new(app);
         bar.show();
+        if let Some(ref page) = init_page {
+            bar.settings.show_page(page);
+        }
     });
 
-    app.run();
+    app.run_with_args(&[] as &[&str]);
 }
 
 fn load_css() {

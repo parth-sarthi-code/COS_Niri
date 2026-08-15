@@ -149,7 +149,7 @@ layer-rule {
         blur true
         noise 0.03
         saturation 1.6
-        xray true
+        xray false
     }
 }
 

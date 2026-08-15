@@ -9,7 +9,12 @@ use gtk4::gdk;
 use gtk4::gdk_pixbuf::{Pixbuf, Colorspace};
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
+
+thread_local! {
+    static TRAY_TEXTURE_CACHE: RefCell<HashMap<u64, gdk::Texture>> = RefCell::new(HashMap::new());
+}
 
 pub struct TrayPopup {
     pub window: gtk4::Window,
@@ -580,8 +585,30 @@ impl RightSection {
 
         let raw = pixmap.buffer.as_ref();
         let len = raw.len();
-        let mut rgba = Vec::with_capacity(len);
+        if len == 0 {
+            return None;
+        }
 
+        // Fast hash of pixmap dimensions and sample bytes
+        let sample1 = raw[0] as u64;
+        let sample2 = raw[len / 2] as u64;
+        let sample3 = raw[len - 1] as u64;
+        let hash_key = (width as u64)
+            ^ ((height as u64) << 16)
+            ^ ((len as u64) << 32)
+            ^ (sample1 << 8)
+            ^ (sample2 << 24)
+            ^ (sample3 << 40);
+
+        let cached = TRAY_TEXTURE_CACHE.with(|cache| {
+            cache.borrow().get(&hash_key).cloned()
+        });
+
+        if let Some(texture) = cached {
+            return Some(texture);
+        }
+
+        let mut rgba = Vec::with_capacity(len);
         let mut idx = 0;
         while idx + 3 < len {
             let a = raw[idx];
@@ -598,7 +625,17 @@ impl RightSection {
         let stride = width * 4;
         let gbytes = glib::Bytes::from_owned(rgba);
         let pixbuf = Pixbuf::from_bytes(&gbytes, Colorspace::Rgb, true, 8, width, height, stride);
-        Some(gdk::Texture::for_pixbuf(&pixbuf))
+        let texture = gdk::Texture::for_pixbuf(&pixbuf);
+
+        TRAY_TEXTURE_CACHE.with(|cache| {
+            let mut c = cache.borrow_mut();
+            if c.len() > 50 {
+                c.clear();
+            }
+            c.insert(hash_key, texture.clone());
+        });
+
+        Some(texture)
     }
 
     fn append_menu_entries_win(
