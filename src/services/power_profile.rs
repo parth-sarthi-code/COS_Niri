@@ -1,7 +1,7 @@
 use crate::services::worker::TaskWorker;
 use std::process::Command;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PowerProfile {
     Performance,
     Balanced,
@@ -72,5 +72,13 @@ impl PowerProfileService {
         });
 
         next
+    }
+
+    /// Set the active power profile
+    pub fn set_profile(profile: PowerProfile) {
+        let _ = Command::new("powerprofilesctl")
+            .env("LC_ALL", "C")
+            .args(["set", profile.to_cmd_str()])
+            .output();
     }
 }

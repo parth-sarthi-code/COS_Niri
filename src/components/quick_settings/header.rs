@@ -7,9 +7,10 @@ pub struct HeaderSection {
 }
 
 impl HeaderSection {
-    pub fn new<F>(on_collapse: F) -> Self
+    pub fn new<F, FS>(on_collapse: F, on_settings: FS) -> Self
     where
         F: Fn() + 'static,
+        FS: Fn() + 'static,
     {
         let container = GtkBox::new(Orientation::Horizontal, 8);
         container.add_css_class("qs-header");
@@ -65,10 +66,10 @@ impl HeaderSection {
         });
         actions_box.append(&lock_btn);
 
-        // Settings button
+        // Settings button — opens in-bar Settings popup
         let settings_btn = Self::create_action_icon("\u{e8b8}", "Settings");
-        settings_btn.connect_clicked(|_| {
-            let _ = Command::new("sh").arg("-c").arg("gnome-control-center || niri-settings").spawn();
+        settings_btn.connect_clicked(move |_| {
+            on_settings();
         });
         actions_box.append(&settings_btn);
 
@@ -96,3 +97,4 @@ impl HeaderSection {
         btn
     }
 }
+

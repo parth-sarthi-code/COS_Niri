@@ -5,3 +5,4 @@ pub mod left;
 pub mod quick_settings;
 pub mod right;
 pub mod launcher;
+pub mod settings;

@@ -4,7 +4,7 @@ use crate::services::network::NetworkService;
 use crate::services::tray::TrayService;
 use chrono::Local;
 use gtk4::prelude::*;
-use gtk4::{Box as GtkBox, Button, Label, Orientation};
+use gtk4::{Box as GtkBox, Button, Label, Orientation, ScrolledWindow};
 use gtk4::gdk;
 use gtk4::gdk_pixbuf::{Pixbuf, Colorspace};
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
@@ -32,8 +32,17 @@ impl TrayPopup {
 
         let container = GtkBox::new(Orientation::Vertical, 2);
         container.add_css_class("tray-popup-container");
-        container.set_size_request(160, -1);
-        window.set_child(Some(&container));
+        container.set_size_request(240, -1);
+
+        let scroll = ScrolledWindow::new();
+        scroll.add_css_class("tray-popup-scroll");
+        scroll.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Automatic);
+        scroll.set_max_content_height(480);
+        scroll.set_propagate_natural_height(true);
+        scroll.set_propagate_natural_width(true);
+        scroll.set_child(Some(&container));
+
+        window.set_child(Some(&scroll));
 
         Self { window, container }
     }
@@ -617,6 +626,10 @@ impl RightSection {
 
                 let label = Label::new(Some(&entry.label));
                 label.set_halign(gtk4::Align::Start);
+                label.set_hexpand(true);
+                label.set_max_width_chars(32);
+                label.set_ellipsize(gtk4::pango::EllipsizeMode::End);
+                label.set_tooltip_text(Some(&entry.label));
                 m_btn.set_child(Some(&label));
 
                 let id_click = id.to_string();

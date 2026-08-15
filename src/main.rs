@@ -13,12 +13,22 @@ const BAR_CSS: &str = include_str!("css/bar.css");
 const QUICK_SETTINGS_CSS: &str = include_str!("css/quick_settings.css");
 const CALENDAR_CSS: &str = include_str!("css/calendar.css");
 const LAUNCHER_CSS: &str = include_str!("css/launcher.css");
+const SETTINGS_CSS: &str = include_str!("css/settings.css");
 
 thread_local! {
     static CSS_PROVIDER: CssProvider = CssProvider::new();
 }
 
 fn main() {
+    // Configure GSK_RENDERER if set in settings and not overridden by user env
+    if std::env::var("GSK_RENDERER").is_err() {
+        let perf = services::settings::SettingsService::get_performance();
+        if !perf.renderer.is_empty() {
+            std::env::set_var("GSK_RENDERER", &perf.renderer);
+            eprintln!("[main] Using GSK_RENDERER={}", perf.renderer);
+        }
+    }
+
     // Generate/initialize Material You theme colors from wallpaper using matugen
     services::theme::ThemeService::initialize();
 
@@ -86,6 +96,7 @@ fn load_css() {
     css_content.push_str(QUICK_SETTINGS_CSS);
     css_content.push_str(CALENDAR_CSS);
     css_content.push_str(LAUNCHER_CSS);
+    css_content.push_str(SETTINGS_CSS);
 
     CSS_PROVIDER.with(|provider| {
         provider.load_from_string(&css_content);

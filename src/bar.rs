@@ -6,10 +6,11 @@ use crate::components::launcher::LauncherPopup;
 use crate::components::quick_settings::grid::GridSection;
 use crate::components::quick_settings::popup::QuickSettingsPopup;
 use crate::components::right::RightSection;
+use crate::components::settings::popup::SettingsPopup;
 use crate::services::bluetooth::BluetoothService;
 use crate::services::network::NetworkService;
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Box as GtkBox, Orientation, Separator};
+use gtk4::{Application, ApplicationWindow, Box as GtkBox, CenterBox, Orientation, Separator};
 use gtk4_layer_shell::{Edge, Layer, LayerShell};
 use std::cell::RefCell;
 use std::os::unix::io::RawFd;
@@ -49,6 +50,7 @@ pub struct BarWindow {
     pub quick_settings: Rc<QuickSettingsPopup>,
     pub calendar: Rc<CalendarPopup>,
     pub launcher: Rc<LauncherPopup>,
+    pub settings: Rc<SettingsPopup>,
     pub click_catcher: Rc<ClickCatcher>,
 }
 
@@ -74,8 +76,14 @@ impl BarWindow {
         // Instantiate App Launcher popup
         let launcher = Rc::new(LauncherPopup::new(app));
 
-        // Instantiate Quick Settings floating popup
-        let quick_settings = Rc::new(QuickSettingsPopup::new(app));
+        // Instantiate Settings popup
+        let settings = Rc::new(SettingsPopup::new(app));
+
+        // Instantiate Quick Settings floating popup (with settings toggle callback)
+        let settings_toggle = Rc::clone(&settings);
+        let quick_settings = Rc::new(QuickSettingsPopup::new(app, move || {
+            settings_toggle.toggle();
+        }));
 
         // Instantiate Calendar floating popup
         let calendar = Rc::new(CalendarPopup::new(app));
@@ -144,18 +152,37 @@ impl BarWindow {
         let cc_l = Rc::clone(&click_catcher);
 
         let left_section = LeftSection::new(move || {
-            let is_open = l_toggle.window.is_visible();
-            q_toggle_l.close();
-            c_toggle_l.close();
-            if let Some(ref r) = *r_toggle_l.borrow() {
-                r.close();
-            }
-            if is_open {
-                l_toggle.close();
+            let backend = crate::services::settings::SettingsService::get_performance().launcher_backend;
+            if backend == "fuzzel" {
+                q_toggle_l.close();
+                c_toggle_l.close();
+                if let Some(ref r) = *r_toggle_l.borrow() {
+                    r.close();
+                }
                 cc_l.hide();
+                // Spawn Fuzzel detached asynchronously
+                crate::services::worker::TaskWorker::dispatch(|| {
+                    let fuzzel_ini = dirs::home_dir()
+                        .unwrap_or_default()
+                        .join(".config/cos-niri/fuzzel-colors.ini");
+                    let _ = std::process::Command::new("fuzzel")
+                        .args(["--config", &fuzzel_ini.to_string_lossy()])
+                        .spawn();
+                });
             } else {
-                cc_l.show();
-                l_toggle.toggle();
+                let is_open = l_toggle.window.is_visible();
+                q_toggle_l.close();
+                c_toggle_l.close();
+                if let Some(ref r) = *r_toggle_l.borrow() {
+                    r.close();
+                }
+                if is_open {
+                    l_toggle.close();
+                    cc_l.hide();
+                } else {
+                    cc_l.show();
+                    l_toggle.toggle();
+                }
             }
         });
 
@@ -252,38 +279,38 @@ impl BarWindow {
             glib::ControlFlow::Continue
         });
 
-        // Main shelf container
-        let main_box = GtkBox::new(Orientation::Horizontal, 0);
-        main_box.add_css_class("cos-bar-container");
+        // Main shelf container using CenterBox for true screen-center alignment
+        let center_box = CenterBox::new();
+        center_box.add_css_class("cos-bar-container");
 
-        // Left — fixed to start
-        left_section.container.set_halign(gtk4::Align::Start);
-        left_section.container.set_hexpand(false);
-        main_box.append(&left_section.container);
+        // Left box (Left section + separator)
+        let left_box = GtkBox::new(Orientation::Horizontal, 0);
+        left_box.set_halign(gtk4::Align::Start);
+        left_box.append(&left_section.container);
 
-        // Vertical separator between left and center
         let sep_lc = Separator::new(Orientation::Vertical);
         sep_lc.add_css_class("shelf-sep");
-        main_box.append(&sep_lc);
+        left_box.append(&sep_lc);
 
-        // Center — expand and center in available space
-        let center_wrapper = GtkBox::new(Orientation::Horizontal, 0);
-        center_wrapper.set_hexpand(true);
-        center_wrapper.set_halign(gtk4::Align::Center);
-        center_wrapper.append(&center_section.container);
-        main_box.append(&center_wrapper);
+        center_box.set_start_widget(Some(&left_box));
 
-        // Vertical separator between center and right
+        // Center widget (Pinned apps & active indicators) — locked to true screen center as a compact dock
+        center_section.container.set_halign(gtk4::Align::Center);
+        center_section.container.set_hexpand(false);
+        center_box.set_center_widget(Some(&center_section.container));
+
+        // Right box (Separator + Right section)
+        let right_box = GtkBox::new(Orientation::Horizontal, 0);
+        right_box.set_halign(gtk4::Align::End);
+
         let sep_cr = Separator::new(Orientation::Vertical);
         sep_cr.add_css_class("shelf-sep");
-        main_box.append(&sep_cr);
+        right_box.append(&sep_cr);
+        right_box.append(&right_section.container);
 
-        // Right — fixed to end
-        right_section.container.set_halign(gtk4::Align::End);
-        right_section.container.set_hexpand(false);
-        main_box.append(&right_section.container);
+        center_box.set_end_widget(Some(&right_box));
 
-        window.set_child(Some(&main_box));
+        window.set_child(Some(&center_box));
 
         Self {
             window,
@@ -293,6 +320,7 @@ impl BarWindow {
             quick_settings,
             calendar,
             launcher,
+            settings,
             click_catcher,
         }
     }

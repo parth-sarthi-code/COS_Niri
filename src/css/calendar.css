@@ -35,12 +35,12 @@ button.cal-today-btn {
 
 button.cal-today-btn:hover {
     background-image: none;
-    background-color: rgba(255, 255, 255, 0.18);
+    background-color: @card-bg-hover;
 }
 
 button.cal-nav-btn {
     background-image: none;
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: @bubble-bg;
     border-radius: 50%;
     min-width: 36px;
     min-height: 36px;
@@ -56,7 +56,7 @@ button.cal-nav-btn label {
 
 button.cal-nav-btn:hover {
     background-image: none;
-    background-color: rgba(255, 255, 255, 0.16);
+    background-color: @bubble-bg-hover;
 }
 
 /* Days of Week Header Grid */
@@ -86,9 +86,19 @@ button.cal-day-cell {
     transition: background-color 150ms ease;
 }
 
+button.cal-day-cell label {
+    font-size: 14px;
+    font-weight: 500;
+    color: @text-primary;
+}
+
+button.cal-day-cell.cal-active-month label {
+    color: @text-primary;
+}
+
 button.cal-day-cell.cal-active-month:hover {
     background-image: none;
-    background-color: rgba(255, 255, 255, 0.14);
+    background-color: @card-bg-hover;
 }
 
 /* Today Active Bubble */
@@ -100,6 +110,17 @@ button.cal-day-cell.cal-today {
     border-radius: 50%;
 }
 
+button.cal-day-cell.cal-today label {
+    color: @on-primary;
+    font-weight: 700;
+}
+
+button.cal-day-cell.cal-other-month label {
+    color: @text-muted;
+    opacity: 0.35;
+}
+
 button.cal-day-cell.cal-other-month {
-    opacity: 0.25;
+    color: @text-muted;
+    opacity: 0.35;
 }

@@ -5,18 +5,18 @@ window.qs-popup-window {
 }
 
 box.qs-popup-container {
-    background-color: rgba(18, 19, 26, 0.72);
+    background-color: @surface;
     border-radius: 24px;
     padding: 20px 24px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid @outline;
     box-shadow: none;
     font-family: "Roboto", sans-serif;
-    color: #e3e2e6;
+    color: @text-primary;
 }
 
 /* Separator lines */
 separator.qs-sep {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: @sep-color;
     min-height: 1px;
     margin: 8px 0;
 }
@@ -34,44 +34,45 @@ box.qs-header {
 }
 
 box.qs-avatar-bubble {
-    background-color: rgba(255, 255, 255, 0.10);
+    background-color: @bubble-bg;
     border-radius: 50%;
     min-width: 32px;
     min-height: 32px;
     padding: 0;
     margin: 0;
+    color: @text-primary;
 }
 
 box.qs-popup-container button.qs-signout-btn {
-    background-color: rgba(255, 255, 255, 0.10);
+    background-color: @bubble-bg;
     border-radius: 14px;
     padding: 5px 14px;
     font-size: 12px;
     font-weight: 500;
-    color: #ffffff;
+    color: @text-primary;
     transition: background-color 150ms ease;
 }
 
 box.qs-popup-container button.qs-signout-btn:hover {
-    background-color: rgba(255, 255, 255, 0.18);
+    background-color: @bubble-bg-hover;
 }
 
 box.qs-popup-container button.qs-header-icon-btn {
-    background-color: rgba(255, 255, 255, 0.10);
+    background-color: @bubble-bg;
     border-radius: 50%;
     min-width: 34px;
     min-height: 34px;
     padding: 0;
-    color: #e3e2e6;
+    color: @text-primary;
     transition: background-color 150ms ease;
 }
 
 box.qs-popup-container button.qs-header-icon-btn label {
-    color: #e3e2e6;
+    color: @text-primary;
 }
 
 box.qs-popup-container button.qs-header-icon-btn:hover {
-    background-color: rgba(255, 255, 255, 0.18);
+    background-color: @bubble-bg-hover;
 }
 
 /* --- Quick Settings Feature Grid --- */
@@ -84,8 +85,8 @@ box.qs-tile {
 }
 
 box.qs-popup-container button.qs-tile-bubble {
-    background-color: rgba(255, 255, 255, 0.10);
-    color: #e3e2e6;
+    background-color: @bubble-bg;
+    color: @text-primary;
     border-radius: 50%;
     min-width: 52px;
     min-height: 52px;
@@ -94,14 +95,14 @@ box.qs-popup-container button.qs-tile-bubble {
 }
 
 box.qs-popup-container button.qs-tile-bubble label {
-    color: inherit;
+    color: @text-primary;
 }
 
 box.qs-popup-container button.qs-tile-bubble:hover {
-    background-color: rgba(255, 255, 255, 0.18);
+    background-color: @bubble-bg-hover;
 }
 
-/* Active Material You Pastel Blue Tile */
+/* Active Material You Pastel Tile */
 box.qs-popup-container button.qs-tile-bubble.active {
     background-color: @primary;
     color: @on-primary;
@@ -114,13 +115,13 @@ box.qs-popup-container button.qs-tile-bubble.active label {
 label.qs-tile-title {
     font-size: 12px;
     font-weight: 500;
-    color: #e3e2e6;
+    color: @text-primary;
     margin-top: 2px;
 }
 
 label.qs-tile-sub {
     font-size: 11px;
-    color: #938f99;
+    color: @text-secondary;
 }
 
 box.qs-popup-container button.qs-tile-arrow {
@@ -130,7 +131,7 @@ box.qs-popup-container button.qs-tile-arrow {
     box-shadow: none;
     padding: 0;
     margin: 0;
-    color: #c4c6d0;
+    color: @text-secondary;
 }
 
 /* --- Sliders Section --- */
@@ -140,27 +141,27 @@ box.qs-sliders-section {
 
 box.qs-popup-container button.qs-slider-icon-btn,
 box.qs-popup-container button.qs-slider-arrow-btn {
-    background-color: rgba(255, 255, 255, 0.10);
+    background-color: @bubble-bg;
     border-radius: 50%;
     min-width: 34px;
     min-height: 34px;
     padding: 0;
-    color: #e3e2e6;
+    color: @text-primary;
     transition: background-color 150ms ease;
 }
 
 box.qs-popup-container button.qs-slider-icon-btn label,
 box.qs-popup-container button.qs-slider-arrow-btn label {
-    color: #e3e2e6;
+    color: @text-primary;
 }
 
 box.qs-popup-container button.qs-slider-icon-btn:hover,
 box.qs-popup-container button.qs-slider-arrow-btn:hover {
-    background-color: rgba(255, 255, 255, 0.18);
+    background-color: @bubble-bg-hover;
 }
 
 scale.qs-slider trough {
-    background-color: rgba(255, 255, 255, 0.12);
+    background-color: @trough-bg;
     border-radius: 3px;
     min-height: 6px;
     border: none;
@@ -187,7 +188,7 @@ scale.qs-slider slider {
 
 scale.qs-slider:hover slider,
 scale.qs-slider:active slider {
-    background-color: #ffffff;
+    background-color: @on-primary;
     min-width: 10px;
     min-height: 10px;
     margin: -2px 0;
@@ -202,12 +203,12 @@ box.qs-footer {
 
 label.qs-footer-text {
     font-size: 12px;
-    color: #c4c6d0;
+    color: @text-secondary;
 }
 
 label.qs-footer-sep {
     font-size: 12px;
-    color: #49454f;
+    color: @text-muted;
     margin: 0 4px;
 }
 
@@ -224,7 +225,7 @@ box.qs-subpage-header {
 label.qs-subpage-title {
     font-size: 15px;
     font-weight: 600;
-    color: #ffffff;
+    color: @text-primary;
 }
 
 box.qs-subpage-list {
@@ -233,7 +234,7 @@ box.qs-subpage-list {
 
 /* --- Wi-Fi Item Cards --- */
 box.qs-wifi-item-card {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: @card-bg;
     border-radius: 14px;
     padding: 6px 10px;
     margin: 2px 0;
@@ -251,29 +252,29 @@ button.qs-list-item-btn {
     border-radius: 10px;
     padding: 0;
     box-shadow: none;
-    color: #ffffff;
+    color: @text-primary;
 }
 
 button.qs-list-item-btn:hover {
     background-image: none;
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: @card-bg-hover;
 }
 
 button.qs-disc-btn {
     background-image: none;
-    background-color: rgba(255, 255, 255, 0.12);
+    background-color: @bubble-bg;
     border-radius: 12px;
     padding: 4px 10px;
     font-size: 12px;
     font-weight: 500;
-    color: #ffffff;
+    color: @text-primary;
     border: none;
     box-shadow: none;
 }
 
 button.qs-disc-btn:hover {
     background-image: none;
-    background-color: rgba(255, 255, 255, 0.22);
+    background-color: @bubble-bg-hover;
 }
 
 box.qs-pass-box {
@@ -282,26 +283,26 @@ box.qs-pass-box {
 }
 
 passwordentry.qs-pass-input, entry.qs-pass-input {
-    background-color: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    background-color: @card-bg;
+    border: 1px solid @outline;
     border-radius: 12px;
-    color: #ffffff;
+    color: @text-primary;
     padding: 6px 12px;
     font-size: 13px;
 }
 
 passwordentry.qs-pass-input text, entry.qs-pass-input text {
-    color: #ffffff;
+    color: @text-primary;
 }
 
 passwordentry.qs-pass-input:focus, entry.qs-pass-input:focus {
-    border-color: #a8c7fa;
-    background-color: rgba(255, 255, 255, 0.18);
+    border-color: @primary;
+    background-color: @card-bg-hover;
 }
 
 label.qs-subpage-empty {
     font-size: 13px;
-    color: #938f99;
+    color: @text-secondary;
     padding: 20px;
 }
 
@@ -312,17 +313,17 @@ popover.qs-popup-popover {
 }
 
 popover.qs-popup-popover contents {
-    background-color: rgba(18, 19, 26, 0.85);
+    background-color: @surface;
     border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    border: 1px solid @outline;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
     padding: 6px;
-    color: #e3e2e6;
+    color: @text-primary;
 }
 
 popover.qs-popup-popover arrow {
-    background-color: rgba(18, 19, 26, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    background-color: @surface;
+    border: 1px solid @outline;
 }
 
 /* Sub-menu and list item overrides inside tray popover */
@@ -334,17 +335,17 @@ popover.qs-popup-popover button.qs-list-item-btn {
     padding: 8px 16px;
     min-height: 36px;
     box-shadow: none;
-    color: #e3e2e6;
+    color: @text-primary;
     transition: background-color 120ms ease;
 }
 
 popover.qs-popup-popover button.qs-list-item-btn:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: @card-bg-hover;
 }
 
 /* Thin clean menu separator */
 separator.shelf-sep {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: @sep-color;
     min-height: 1px;
     margin: 4px 8px;
 }
@@ -354,12 +355,35 @@ window.tray-popup-window {
     background-color: transparent;
 }
 
-box.tray-popup-container {
+scrolledwindow.tray-popup-scroll {
     background-color: @surface;
     border-radius: 16px;
-    padding: 6px;
     border: 1px solid @outline;
-    box-shadow: none;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
+    min-width: 180px;
+}
+
+scrolledwindow.tray-popup-scroll viewport {
+    background: transparent;
+    border: none;
+}
+
+scrolledwindow.tray-popup-scroll scrollbar {
+    min-width: 4px;
+    background: transparent;
+    border: none;
+    margin: 6px 2px;
+}
+
+scrolledwindow.tray-popup-scroll scrollbar slider {
+    min-width: 4px;
+    background-color: @outline;
+    border-radius: 4px;
+}
+
+box.tray-popup-container {
+    background-color: transparent;
+    padding: 6px;
     font-family: "Roboto", sans-serif;
     color: @text-primary;
 }
@@ -377,7 +401,7 @@ box.tray-popup-container button.qs-list-item-btn {
 }
 
 box.tray-popup-container button.qs-list-item-btn:hover {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: @card-bg-hover;
 }
 
 box.tray-popup-container button.qs-list-item-btn label {
@@ -387,7 +411,7 @@ box.tray-popup-container button.qs-list-item-btn label {
 
 /* Custom separator inside tray-popup-container */
 box.tray-popup-container separator.shelf-sep {
-    background-color: rgba(255, 255, 255, 0.08);
+    background-color: @sep-color;
     min-height: 1px;
     margin: 4px 6px;
 }

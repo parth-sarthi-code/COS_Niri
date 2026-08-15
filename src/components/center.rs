@@ -115,6 +115,8 @@ impl CenterSection {
         let container = Rc::new(GtkBox::new(Orientation::Horizontal, 6));
         container.add_css_class("center-section");
         container.set_valign(gtk4::Align::Center);
+        container.set_halign(gtk4::Align::Center);
+        container.set_hexpand(false);
 
         Self::init_icon_theme();
 
@@ -124,60 +126,9 @@ impl CenterSection {
         let mut pinned_widgets = Vec::new();
 
         for config in pinned_configs {
-            // 1. Try to resolve Exec= from scanned desktop entry
-            let found_entry = desktop_entries.values().find(|entry| {
-                let id_lower = entry.desktop_id.to_lowercase();
-                let name_lower = entry.name.to_lowercase();
-                let exec_lower = entry.exec.to_lowercase();
-                config.match_ids.iter().any(|m| {
-                    id_lower.contains(m) || name_lower.contains(m) || exec_lower.contains(m)
-                })
-            });
-
-            // 2. If desktop entry not found, probe candidate binaries on system PATH
-            let resolved_exec = found_entry
-                .map(|e| e.exec.clone())
-                .unwrap_or_else(|| Self::probe_first_valid_binary(&config.fallback_candidates));
-
-            let icon_to_use = found_entry
-                .map(|e| e.icon.clone())
-                .unwrap_or_else(|| config.fixed_icon.clone());
-
-            let (button, dot) = Self::create_dock_button_nodes(&icon_to_use, &config.display_title);
-            let focus_id_cell = Rc::new(RefCell::new(None));
-
-            let focus_cell_clone = Rc::clone(&focus_id_cell);
-            let exec_cmd_clone = resolved_exec.clone();
-
-            button.connect_clicked(move |_| {
-                let target_id = *focus_cell_clone.borrow();
-                let mut focus_success = false;
-
-                if let Some(id) = target_id {
-                    // Check if window ID is still alive in current window list
-                    if let Ok(windows) = NiriIpcClient::get_windows() {
-                        if windows.iter().any(|w| w.id == id) {
-                            NiriIpcClient::focus_window(id);
-                            focus_success = true;
-                        }
-                    }
-                }
-
-                // If window no longer exists or focus failed, launch new instance
-                if !focus_success {
-                    Self::launch_app(&exec_cmd_clone);
-                }
-            });
-
-            container.append(&button);
-
-            pinned_widgets.push(PinnedAppWidget {
-                config,
-                button,
-                dot,
-                focus_id_cell,
-                resolved_exec,
-            });
+            let widget = Self::create_pinned_widget(config, desktop_entries);
+            container.append(&widget.button);
+            pinned_widgets.push(widget);
         }
 
         let unpinned_box = GtkBox::new(Orientation::Horizontal, 6);
@@ -249,19 +200,158 @@ impl CenterSection {
         candidates.first().cloned().unwrap_or_default()
     }
 
-    /// Load pinned configs
+    /// Load pinned configs — reads from settings.json first, falls back to hardcoded defaults
     fn load_pinned_configs() -> Vec<PinnedAppConfig> {
-        let mut configs = Vec::new();
-        for &(title, icon, desk, fallbacks, matches) in DEFAULT_PINNED_APPS {
-            configs.push(PinnedAppConfig {
-                display_title: title.to_string(),
-                fixed_icon: icon.to_string(),
-                desktop_file: desk.to_string(),
-                fallback_candidates: fallbacks.iter().map(|s| s.to_string()).collect(),
-                match_ids: matches.iter().map(|s| s.to_string()).collect(),
-            });
+        let saved = crate::services::settings::SettingsService::get_pinned_apps();
+
+        if saved.is_empty() {
+            // Fallback to hardcoded defaults
+            let mut configs = Vec::new();
+            for &(title, icon, desk, fallbacks, matches) in DEFAULT_PINNED_APPS {
+                configs.push(PinnedAppConfig {
+                    display_title: title.to_string(),
+                    fixed_icon: icon.to_string(),
+                    desktop_file: desk.to_string(),
+                    fallback_candidates: fallbacks.iter().map(|s| s.to_string()).collect(),
+                    match_ids: matches.iter().map(|s| s.to_string()).collect(),
+                });
+            }
+            return configs;
         }
+
+        let desktop_entries = Self::scan_desktop_entries();
+        let mut configs = Vec::new();
+
+        for app in &saved {
+            // Try to find matching hardcoded config for enriched metadata
+            let hardcoded = DEFAULT_PINNED_APPS.iter().find(|&&(_, _, desk, _, _)| desk == app.desktop_id);
+
+            if let Some(&(title, icon, desk, fallbacks, matches)) = hardcoded {
+                configs.push(PinnedAppConfig {
+                    display_title: title.to_string(),
+                    fixed_icon: icon.to_string(),
+                    desktop_file: desk.to_string(),
+                    fallback_candidates: fallbacks.iter().map(|s| s.to_string()).collect(),
+                    match_ids: matches.iter().map(|s| s.to_string()).collect(),
+                });
+            } else {
+                // Dynamically resolve from desktop entry
+                let entry = desktop_entries.values().find(|e| e.desktop_id == app.desktop_id);
+                let icon = entry.map(|e| e.icon.clone()).unwrap_or_else(|| "application-x-executable".to_string());
+                let exec = entry.map(|e| e.exec.clone()).unwrap_or_default();
+                let desktop_id_lower = app.desktop_id.to_lowercase().replace(".desktop", "");
+                let name_lower = app.name.to_lowercase();
+                let mut match_ids = vec![desktop_id_lower.clone(), name_lower];
+                if let Some(first_exec) = exec.split_whitespace().next() {
+                    let bin_clean = first_exec.split('/').last().unwrap_or(first_exec).to_lowercase();
+                    if !match_ids.contains(&bin_clean) {
+                        match_ids.push(bin_clean);
+                    }
+                }
+
+                configs.push(PinnedAppConfig {
+                    display_title: app.name.clone(),
+                    fixed_icon: icon,
+                    desktop_file: app.desktop_id.clone(),
+                    fallback_candidates: if exec.is_empty() { vec![] } else { vec![exec] },
+                    match_ids,
+                });
+            }
+        }
+
         configs
+    }
+
+    /// Build a single pinned app widget
+    fn create_pinned_widget(config: PinnedAppConfig, desktop_entries: &HashMap<String, DesktopEntry>) -> PinnedAppWidget {
+        // 1. Try to resolve Exec= from scanned desktop entry
+        let found_entry = desktop_entries.values().find(|entry| {
+            let id_lower = entry.desktop_id.to_lowercase();
+            let name_lower = entry.name.to_lowercase();
+            let exec_lower = entry.exec.to_lowercase();
+            config.match_ids.iter().any(|m| {
+                id_lower.contains(m) || name_lower.contains(m) || exec_lower.contains(m)
+            })
+        });
+
+        // 2. If desktop entry not found, probe candidate binaries on system PATH
+        let resolved_exec = found_entry
+            .map(|e| e.exec.clone())
+            .unwrap_or_else(|| Self::probe_first_valid_binary(&config.fallback_candidates));
+
+        let icon_to_use = found_entry
+            .map(|e| e.icon.clone())
+            .unwrap_or_else(|| config.fixed_icon.clone());
+
+        let (button, dot) = Self::create_dock_button_nodes(&icon_to_use, &config.display_title);
+        let focus_id_cell = Rc::new(RefCell::new(None));
+
+        let focus_cell_clone = Rc::clone(&focus_id_cell);
+        let exec_cmd_clone = resolved_exec.clone();
+
+        button.connect_clicked(move |_| {
+            let target_id = *focus_cell_clone.borrow();
+            let mut focus_success = false;
+
+            if let Some(id) = target_id {
+                if let Ok(windows) = NiriIpcClient::get_windows() {
+                    if windows.iter().any(|w| w.id == id) {
+                        NiriIpcClient::focus_window(id);
+                        focus_success = true;
+                    }
+                }
+            }
+
+            if !focus_success {
+                Self::launch_app(&exec_cmd_clone);
+            }
+        });
+
+        PinnedAppWidget {
+            config,
+            button,
+            dot,
+            focus_id_cell,
+            resolved_exec,
+        }
+    }
+
+    /// Hot-reload pinned apps from settings.json and update the live dock immediately
+    pub fn reload_pinned_apps() {
+        CENTER_STATE.with(|cell| {
+            let mut state_borrow = cell.borrow_mut();
+            if let Some(state) = state_borrow.as_mut() {
+                // 1. Remove existing pinned widgets from container
+                for item in &state.pinned_widgets {
+                    state.container.remove(&item.button);
+                }
+                state.container.remove(&state.unpinned_box);
+
+                // 2. Build new pinned widgets from settings.json
+                let pinned_configs = Self::load_pinned_configs();
+                let desktop_entries = Self::scan_desktop_entries();
+                let mut new_pinned_widgets = Vec::new();
+
+                for config in pinned_configs {
+                    let widget = Self::create_pinned_widget(config, desktop_entries);
+                    state.container.append(&widget.button);
+                    new_pinned_widgets.push(widget);
+                }
+
+                // 3. Re-append unpinned_box at the end
+                state.container.append(&state.unpinned_box);
+                state.pinned_widgets = new_pinned_widgets;
+
+                // 4. Update running/focus state immediately
+                if let Ok(windows) = NiriIpcClient::get_windows() {
+                    drop(state_borrow);
+                    Self::update_dock(&windows);
+                } else {
+                    drop(state_borrow);
+                    Self::update_dock(&[]);
+                }
+            }
+        });
     }
 
     /// Scan XDG directories once at startup (cached in memory)
@@ -579,6 +669,8 @@ impl CenterSection {
         let dock_btn = Button::new();
         dock_btn.add_css_class("dock-item");
         dock_btn.set_tooltip_text(Some(tooltip));
+        dock_btn.set_halign(gtk4::Align::Center);
+        dock_btn.set_hexpand(false);
 
         let item_box = GtkBox::new(Orientation::Vertical, 2);
         item_box.set_valign(gtk4::Align::Center);

@@ -33,7 +33,10 @@ pub struct QuickSettingsPopup {
 }
 
 impl QuickSettingsPopup {
-    pub fn new(app: &Application) -> Self {
+    pub fn new<FS>(app: &Application, on_settings: FS) -> Self
+    where
+        FS: Fn() + 'static,
+    {
         let window = ApplicationWindow::new(app);
 
         // Configure Layer-Shell popup window
@@ -86,7 +89,7 @@ impl QuickSettingsPopup {
         let s_close = window.clone();
         let header = HeaderSection::new(move || {
             s_close.set_visible(false);
-        });
+        }, on_settings);
         main_view.append(&header.container);
 
         let sep1 = Separator::new(Orientation::Horizontal);

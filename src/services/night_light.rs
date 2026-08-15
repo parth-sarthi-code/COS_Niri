@@ -55,4 +55,12 @@ impl NightLightService {
             true
         }
     }
+
+    /// Set night light state explicitly
+    pub fn set_enabled(enable: bool) {
+        let is_on = Self::is_enabled();
+        if is_on != enable {
+            Self::toggle();
+        }
+    }
 }

@@ -1,28 +1,56 @@
+use crate::services::settings::SettingsService;
+use serde::Deserialize;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use serde::Deserialize;
 
-#[derive(Deserialize)]
-struct MatugenColor {
-    default: String,
+#[derive(Deserialize, Debug, Default)]
+struct MatugenColorValue {
+    color: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Default)]
+struct MatugenColorEntry {
+    default: Option<MatugenColorValue>,
+    dark: Option<MatugenColorValue>,
+    light: Option<MatugenColorValue>,
+}
+
+impl MatugenColorEntry {
+    fn resolve(&self, is_dark: bool) -> String {
+        if is_dark {
+            self.dark
+                .as_ref()
+                .or(self.default.as_ref())
+                .or(self.light.as_ref())
+                .map(|c| c.color.clone())
+                .unwrap_or_else(|| "#b4c5ff".into())
+        } else {
+            self.light
+                .as_ref()
+                .or(self.default.as_ref())
+                .or(self.dark.as_ref())
+                .map(|c| c.color.clone())
+                .unwrap_or_else(|| "#1a1b38".into())
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
 struct MatugenColors {
-    primary: MatugenColor,
-    on_primary: MatugenColor,
-    primary_container: MatugenColor,
-    on_primary_container: MatugenColor,
-    surface: MatugenColor,
-    surface_container: MatugenColor,
-    outline: MatugenColor,
-    on_surface: MatugenColor,
-    on_surface_variant: MatugenColor,
+    primary: MatugenColorEntry,
+    on_primary: MatugenColorEntry,
+    primary_container: MatugenColorEntry,
+    on_primary_container: MatugenColorEntry,
+    surface: MatugenColorEntry,
+    surface_container: MatugenColorEntry,
+    outline: MatugenColorEntry,
+    on_surface: MatugenColorEntry,
+    on_surface_variant: MatugenColorEntry,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct MatugenOutput {
     colors: MatugenColors,
 }
@@ -65,18 +93,42 @@ impl ThemeService {
         });
 
         if !Path::new(&path_str).exists() {
+            eprintln!("[theme] Wallpaper path not found: {}", path_str);
             return;
         }
 
+        let theme_settings = SettingsService::get_theme();
+        let scheme_type = &theme_settings.scheme_type;
+        let mode_str = if theme_settings.dark_mode { "dark" } else { "light" };
+
+        eprintln!(
+            "[theme] Running matugen (scheme: {}, mode: {}) on: {}",
+            scheme_type, mode_str, path_str
+        );
+
+        // Always pass --source-color-index 0 and scheme type to prevent interactive prompt hangs
         let output = match Command::new("matugen")
-            .args(["-j", "hex", "image", &path_str])
+            .args([
+                "--source-color-index", "0",
+                "-t", scheme_type,
+                "-m", mode_str,
+                "-j", "hex",
+                "image", &path_str,
+            ])
             .output()
         {
             Ok(o) => o,
-            Err(_) => return,
+            Err(e) => {
+                eprintln!("[theme] Failed to execute matugen CLI: {}", e);
+                return;
+            }
         };
 
         if !output.status.success() {
+            eprintln!(
+                "[theme] Matugen exited with error: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
             return;
         }
 
@@ -84,23 +136,43 @@ impl ThemeService {
         let matugen_data: MatugenOutput = match serde_json::from_str(&json_str) {
             Ok(data) => data,
             Err(e) => {
-                eprintln!("[theme] Failed to parse matugen output: {}", e);
+                eprintln!("[theme] Failed to parse matugen JSON: {}", e);
                 return;
             }
         };
 
         let colors = &matugen_data.colors;
+        let is_dark = theme_settings.dark_mode;
+        let opacity_pct = theme_settings.opacity.clamp(10, 100);
+        let alpha = opacity_pct as f32 / 100.0;
 
-        let primary = &colors.primary.default;
-        let on_primary = &colors.on_primary.default;
-        let primary_container = hex_to_rgba(&colors.primary_container.default, 0.14);
-        let on_primary_container = &colors.on_primary_container.default;
-        let surface = hex_to_rgba(&colors.surface.default, 0.72);
-        let surface_variant = hex_to_rgba(&colors.surface_container.default, 0.07);
-        let outline = hex_to_rgba(&colors.outline.default, 0.10);
-        let text_primary = &colors.on_surface.default;
-        let text_secondary = &colors.on_surface_variant.default;
-        let text_muted = &colors.outline.default;
+        let primary = colors.primary.resolve(is_dark);
+        let on_primary = colors.on_primary.resolve(is_dark);
+        let primary_container_hex = colors.primary_container.resolve(is_dark);
+        let primary_container = hex_to_rgba(&primary_container_hex, 0.14);
+        let on_primary_container = colors.on_primary_container.resolve(is_dark);
+
+        let surface_hex = colors.surface.resolve(is_dark);
+        let surface = hex_to_rgba(&surface_hex, alpha);
+        let surface_opaque = hex_to_rgba(&surface_hex, (alpha * 1.15).min(1.0));
+
+        let surface_container_hex = colors.surface_container.resolve(is_dark);
+        let surface_variant = hex_to_rgba(&surface_container_hex, (alpha * 0.12).max(0.04));
+
+        let outline_hex = colors.outline.resolve(is_dark);
+        let outline = hex_to_rgba(&outline_hex, (alpha * 0.15).max(0.06));
+
+        let text_primary = colors.on_surface.resolve(is_dark);
+        let text_secondary = colors.on_surface_variant.resolve(is_dark);
+        let text_muted = outline_hex;
+
+        let card_bg = if is_dark { "rgba(255, 255, 255, 0.05)" } else { "rgba(0, 0, 0, 0.05)" };
+        let card_bg_hover = if is_dark { "rgba(255, 255, 255, 0.10)" } else { "rgba(0, 0, 0, 0.09)" };
+        let bubble_bg = if is_dark { "rgba(255, 255, 255, 0.10)" } else { "rgba(0, 0, 0, 0.07)" };
+        let bubble_bg_hover = if is_dark { "rgba(255, 255, 255, 0.18)" } else { "rgba(0, 0, 0, 0.12)" };
+        let trough_bg = if is_dark { "rgba(255, 255, 255, 0.12)" } else { "rgba(0, 0, 0, 0.10)" };
+        let sep_color = if is_dark { "rgba(255, 255, 255, 0.08)" } else { "rgba(0, 0, 0, 0.08)" };
+        let sidebar_bg = if is_dark { "rgba(255, 255, 255, 0.03)" } else { "rgba(0, 0, 0, 0.03)" };
 
         let css = format!(
             "@define-color primary {};\n\
@@ -108,21 +180,37 @@ impl ThemeService {
              @define-color primary-container {};\n\
              @define-color on-primary-container {};\n\
              @define-color surface {};\n\
+             @define-color surface-opaque {};\n\
              @define-color surface-variant {};\n\
              @define-color outline {};\n\
              @define-color text-primary {};\n\
              @define-color text-secondary {};\n\
-             @define-color text-muted {};\n",
+             @define-color text-muted {};\n\
+             @define-color card-bg {};\n\
+             @define-color card-bg-hover {};\n\
+             @define-color bubble-bg {};\n\
+             @define-color bubble-bg-hover {};\n\
+             @define-color trough-bg {};\n\
+             @define-color sep-color {};\n\
+             @define-color sidebar-bg {};\n",
             primary,
             on_primary,
             primary_container,
             on_primary_container,
             surface,
+            surface_opaque,
             surface_variant,
             outline,
             text_primary,
             text_secondary,
-            text_muted
+            text_muted,
+            card_bg,
+            card_bg_hover,
+            bubble_bg,
+            bubble_bg_hover,
+            trough_bg,
+            sep_color,
+            sidebar_bg
         );
 
         if let Ok(mut file) = File::create(Self::get_colors_css_path()) {
@@ -149,18 +237,21 @@ impl ThemeService {
         }
 
         // Generate Fuzzel color file
-        let s_hex = strip_hex(&colors.surface.default);
-        let p_hex = strip_hex(primary);
+        let s_hex = strip_hex(&surface_hex);
+        let p_hex = strip_hex(&primary);
+        let txt_hex = strip_hex(&text_primary);
+        let on_p_hex = strip_hex(&on_primary);
+
         let fuzzel_ini = format!(
             "[colors]\n\
-             background={}e6\n\
-             text=ffffffff\n\
+             background={}fa\n\
+             text={}ff\n\
              match={}ff\n\
-             selection={}4d\n\
-             selection-text=ffffffff\n\
+             selection={}ff\n\
+             selection-text={}ff\n\
              selection-match={}ff\n\
              border={}ff\n",
-            s_hex, p_hex, p_hex, p_hex, p_hex
+            s_hex, txt_hex, p_hex, p_hex, on_p_hex, on_p_hex, p_hex
         );
         let fuzzel_path = dirs::home_dir()
             .unwrap_or_default()
@@ -168,6 +259,13 @@ impl ThemeService {
         if let Ok(mut file) = File::create(fuzzel_path) {
             let _ = file.write_all(fuzzel_ini.as_bytes());
         }
+
+        eprintln!("[theme] Theme generated successfully: primary={}", primary);
+
+        // Reload Niri and notify GTK to hot-reload CSS
+        let _ = Command::new("niri")
+            .args(["msg", "action", "load-config-file"])
+            .output();
 
         unsafe {
             libc::raise(libc::SIGUSR2);
@@ -187,38 +285,6 @@ impl ThemeService {
                    @define-color text-muted #938f99;\n";
         if let Ok(mut file) = File::create(Self::get_colors_css_path()) {
             let _ = file.write_all(css.as_bytes());
-        }
-
-        // Generate fallback Niri KDL color file
-        let niri_kdl = "layout {\n\
-                        \tfocus-ring {\n\
-                        \t\tactive-color \"#b4c5ff\"\n\
-                        \t}\n\
-                        \tborder {\n\
-                        \t\tactive-color \"#b4c5ff\"\n\
-                        \t}\n\
-                        }";
-        let niri_kdl_path = dirs::home_dir()
-            .unwrap_or_default()
-            .join(".config/cos-niri/colors-niri.kdl");
-        if let Ok(mut file) = File::create(niri_kdl_path) {
-            let _ = file.write_all(niri_kdl.as_bytes());
-        }
-
-        // Generate fallback Fuzzel color file
-        let fuzzel_ini = "[colors]\n\
-                           background=12131ae6\n\
-                           text=ffffffff\n\
-                           match=b4c5ffff\n\
-                           selection=b4c5ff4d\n\
-                           selection-text=ffffffff\n\
-                           selection-match=b4c5ffff\n\
-                           border=b4c5ffff\n";
-        let fuzzel_path = dirs::home_dir()
-            .unwrap_or_default()
-            .join(".config/cos-niri/fuzzel-colors.ini");
-        if let Ok(mut file) = File::create(fuzzel_path) {
-            let _ = file.write_all(fuzzel_ini.as_bytes());
         }
     }
 }

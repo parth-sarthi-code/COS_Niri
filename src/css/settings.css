@@ -1,0 +1,398 @@
+/* ====================================================
+   COS Settings — Windowed Application Dynamic Styling
+   ==================================================== */
+
+window.settings-window {
+    background-color: @surface;
+    color: @text-primary;
+    font-family: "Roboto", sans-serif;
+}
+
+headerbar.settings-headerbar {
+    background-color: @surface;
+    border-bottom: 1px solid @outline;
+    min-height: 44px;
+    padding: 0 12px;
+}
+
+headerbar.settings-headerbar label.title {
+    font-size: 14px;
+    font-weight: 600;
+    color: @text-primary;
+}
+
+/* Button resets inside settings */
+window.settings-window button {
+    background-image: none;
+    border: none;
+    box-shadow: none;
+}
+
+/* --- Main Layout ------------------------------------ */
+box.settings-main-container {
+    background-color: @surface;
+    font-family: "Roboto", sans-serif;
+    color: @text-primary;
+}
+
+/* --- Left Sidebar ----------------------------------- */
+box.settings-sidebar {
+    background-color: @sidebar-bg;
+    padding: 16px 10px;
+}
+
+separator.settings-sidebar-sep {
+    background-color: @sep-color;
+    min-width: 1px;
+}
+
+button.settings-sidebar-btn {
+    background-color: transparent;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin: 2px 0;
+    transition: background-color 150ms ease;
+}
+
+button.settings-sidebar-btn:hover {
+    background-color: @card-bg-hover;
+}
+
+button.settings-sidebar-btn.active {
+    background-color: @card-bg-hover;
+}
+
+box.settings-nav-indicator {
+    background-color: transparent;
+    border-radius: 2px;
+    min-width: 3px;
+    min-height: 18px;
+    margin-right: 4px;
+    transition: background-color 150ms ease;
+}
+
+button.settings-sidebar-btn.active box.settings-nav-indicator {
+    background-color: @primary;
+}
+
+label.settings-nav-icon {
+    font-size: 20px;
+    color: @text-secondary;
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+button.settings-sidebar-btn.active label.settings-nav-icon {
+    color: @primary;
+}
+
+label.settings-nav-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: @text-primary;
+}
+
+button.settings-sidebar-btn.active label.settings-nav-label {
+    color: @text-primary;
+    font-weight: 600;
+}
+
+/* --- Right Content Area ----------------------------- */
+box.settings-content-area {
+    padding: 24px 28px;
+    background-color: @surface;
+}
+
+box.settings-page-body {
+    padding: 0;
+}
+
+label.settings-page-header-icon {
+    font-size: 26px;
+    color: @primary;
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 32;
+}
+
+label.settings-page-header-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: @text-primary;
+    letter-spacing: -0.2px;
+}
+
+/* --- Card Containers & Descriptions ----------------- */
+box.settings-card-container {
+    background-color: @card-bg;
+    border: 1px solid @outline;
+    border-radius: 14px;
+    padding: 18px;
+    margin-top: 6px;
+}
+
+label.settings-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: @text-primary;
+}
+
+label.settings-card-desc {
+    font-size: 12px;
+    color: @text-secondary;
+    line-height: 1.4;
+}
+
+/* --- Appearance Page -------------------------------- */
+picture.settings-wallpaper-preview {
+    border-radius: 12px;
+    border: 1px solid @outline;
+    background-color: @card-bg;
+}
+
+label.settings-wallpaper-path {
+    font-size: 12px;
+    color: @text-secondary;
+    font-family: monospace;
+}
+
+button.settings-action-btn {
+    background-color: @primary;
+    color: @on-primary;
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: opacity 150ms ease;
+}
+
+button.settings-action-btn:hover {
+    opacity: 0.90;
+}
+
+button.settings-action-btn label {
+    color: @on-primary;
+}
+
+/* Material You Scheme Buttons */
+button.settings-scheme-btn {
+    background-color: @card-bg;
+    border: 1px solid @outline;
+    border-radius: 10px;
+    padding: 10px 8px;
+    transition: all 150ms ease;
+}
+
+button.settings-scheme-btn:hover {
+    background-color: @card-bg-hover;
+    border-color: @outline;
+}
+
+button.settings-scheme-btn.active {
+    background-color: @primary;
+    border-color: @primary;
+}
+
+button.settings-scheme-btn.active label {
+    color: @on-primary;
+    font-weight: 600;
+}
+
+label.settings-scheme-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: @text-primary;
+}
+
+box.settings-theme-mode-row {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid @sep-color;
+}
+
+/* --- Blur & Effects Page ---------------------------- */
+box.settings-blur-header-row {
+    padding: 4px 8px;
+    margin-top: 4px;
+    margin-bottom: 2px;
+}
+
+label.settings-blur-col-header {
+    font-size: 12px;
+    font-weight: 600;
+    color: @text-secondary;
+}
+
+box.settings-blur-row {
+    background-color: @card-bg;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin: 3px 0;
+    transition: background-color 150ms ease;
+}
+
+box.settings-blur-row:hover {
+    background-color: @card-bg-hover;
+}
+
+label.settings-blur-module-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: @text-primary;
+}
+
+button.settings-preset-btn {
+    background-color: @card-bg;
+    border: 1px solid @outline;
+    border-radius: 10px;
+    padding: 8px 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: @text-primary;
+    transition: all 150ms ease;
+}
+
+button.settings-preset-btn:hover {
+    background-color: @card-bg-hover;
+    border-color: @outline;
+}
+
+button.settings-preset-btn.active {
+    background-color: @primary;
+    border-color: @primary;
+    color: @on-primary;
+    font-weight: 600;
+}
+
+button.settings-reset-btn {
+    background-color: @card-bg;
+    border: 1px solid @outline;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: @text-primary;
+    transition: all 150ms ease;
+}
+
+button.settings-reset-btn:hover {
+    background-color: rgba(255, 100, 100, 0.15);
+    border-color: rgba(255, 100, 100, 0.35);
+    color: #ffb4ab;
+}
+
+/* --- Pinned Apps Page ------------------------------- */
+searchentry.settings-search {
+    background-color: @card-bg;
+    border: 1px solid @outline;
+    border-radius: 10px;
+    padding: 8px 14px;
+    color: @text-primary;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+searchentry.settings-search text {
+    color: @text-primary;
+}
+
+searchentry.settings-search:focus {
+    border-color: @primary;
+    background-color: @card-bg-hover;
+}
+
+label.settings-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: @text-secondary;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 8px 0 4px 0;
+}
+
+box.settings-pinned-list {
+    margin-top: 4px;
+}
+
+box.settings-app-row {
+    background-color: @card-bg;
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin: 2px 0;
+    transition: background-color 150ms ease;
+}
+
+box.settings-app-row:hover {
+    background-color: @card-bg-hover;
+}
+
+label.settings-app-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: @text-primary;
+}
+
+button.settings-pin-btn {
+    background-color: rgba(138, 180, 120, 0.18);
+    border-radius: 8px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #8ab478;
+    transition: background-color 150ms ease;
+}
+
+button.settings-pin-btn:hover {
+    background-color: rgba(138, 180, 120, 0.35);
+}
+
+button.settings-unpin-btn {
+    background-color: rgba(255, 120, 120, 0.15);
+    border-radius: 8px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #ff7878;
+    transition: background-color 150ms ease;
+}
+
+button.settings-unpin-btn:hover {
+    background-color: rgba(255, 120, 120, 0.30);
+}
+
+/* --- Performance & Engine Page --------------------- */
+button.settings-engine-card {
+    background-image: none;
+    background-color: @card-bg;
+    border: 1px solid @outline;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin: 4px 0;
+    transition: all 160ms ease;
+    box-shadow: none;
+}
+
+button.settings-engine-card:hover {
+    background-image: none;
+    background-color: @card-bg-hover;
+    border-color: @primary;
+}
+
+button.settings-engine-card.active {
+    background-image: none;
+    background-color: @primary-container;
+    border: 2px solid @primary;
+}
+
+label.settings-engine-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: @text-primary;
+}
+
+button.settings-engine-card.active label.settings-engine-title {
+    color: @primary;
+    font-weight: 700;
+}
+
+label.settings-engine-desc {
+    font-size: 12px;
+    font-weight: 400;
+    color: @text-secondary;
+    margin-top: 2px;
+}

@@ -1,6 +1,6 @@
 // Spawn processes at startup
 // spawn-at-startup "waybar"
-spawn-at-startup "/home/predator/COS_Niri/target/release/cos-niri-bar"
+spawn-at-startup "cos-niri-bar"
 spawn-at-startup "swaync"
 spawn-at-startup "swaybg" "-i" "/home/predator/.config/background" "-m" "fill"
 spawn-at-startup "/home/predator/.local/bin/cos-launcher" "--dock"

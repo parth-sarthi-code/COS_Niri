@@ -176,6 +176,7 @@ layer-rule {
         blur true
         noise 0.03
         saturation 1.6
+        xray true
     }
 }
 
@@ -233,4 +234,27 @@ layer-rule {
         blur true
         xray false
     }
+}
+
+// ChromeOS System Tray Menu Popup — blur + shadow for glassmorphism effect
+layer-rule {
+    match namespace="cos-tray-menu"
+    geometry-corner-radius 16
+    shadow {
+        on
+    }
+    background-effect {
+        blur true
+        xray false
+        noise 0.03
+        saturation 1.6
+    }
+}
+
+// COS Settings Windowed App
+window-rule {
+    match title="Settings"
+    open-floating true
+    default-column-width { fixed 840; }
+    default-window-height { fixed 560; }
 }
