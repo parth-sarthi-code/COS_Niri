@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 extern "C" {
     fn setsid() -> i32;
@@ -30,7 +30,7 @@ const IN_MOVED_FROM: u32 = 0x00000040;
 
 /// Dirty flag for desktop entry cache — starts true to trigger initial scan
 static DESKTOP_ENTRIES_DIRTY: AtomicBool = AtomicBool::new(true);
-static DESKTOP_ENTRIES_CACHE: OnceLock<Mutex<HashMap<String, DesktopEntry>>> = OnceLock::new();
+static DESKTOP_ENTRIES_CACHE: OnceLock<Mutex<Arc<HashMap<String, DesktopEntry>>>> = OnceLock::new();
 static WATCHER_STARTED: AtomicBool = AtomicBool::new(false);
 
 // Icon texture cache — avoids repeated GTK icon theme lookups for the same icon name
@@ -142,8 +142,8 @@ impl CenterSection {
 
         Self::init_icon_theme();
 
-        let pinned_configs = Self::load_pinned_configs();
         let desktop_entries = Self::scan_desktop_entries();
+        let pinned_configs = Self::load_pinned_configs(&desktop_entries);
 
         let mut pinned_widgets = Vec::new();
 
@@ -223,7 +223,7 @@ impl CenterSection {
     }
 
     /// Load pinned configs — reads from settings.json first, falls back to hardcoded defaults
-    fn load_pinned_configs() -> Vec<PinnedAppConfig> {
+    fn load_pinned_configs(desktop_entries: &HashMap<String, DesktopEntry>) -> Vec<PinnedAppConfig> {
         let saved = crate::services::settings::SettingsService::get_pinned_apps();
 
         if saved.is_empty() {
@@ -241,7 +241,6 @@ impl CenterSection {
             return configs;
         }
 
-        let desktop_entries = Self::scan_desktop_entries();
         let mut configs = Vec::new();
 
         for app in &saved {
@@ -350,8 +349,8 @@ impl CenterSection {
                 state.container.remove(&state.unpinned_box);
 
                 // 2. Build new pinned widgets from settings.json
-                let pinned_configs = Self::load_pinned_configs();
                 let desktop_entries = Self::scan_desktop_entries();
+                let pinned_configs = Self::load_pinned_configs(&desktop_entries);
                 let mut new_pinned_widgets = Vec::new();
 
                 for config in pinned_configs {
@@ -376,20 +375,20 @@ impl CenterSection {
         });
     }
 
-    /// Scan XDG application directories. Uses a Mutex-guarded cache with inotify-driven
-    /// dirty-flag invalidation: O(0) filesystem I/O when no apps have been installed/removed.
-    pub fn scan_desktop_entries() -> std::sync::MutexGuard<'static, HashMap<String, DesktopEntry>> {
+    /// Scan XDG application directories. Uses an Arc-wrapped cache with inotify-driven
+    /// dirty-flag invalidation: O(0) filesystem I/O and zero lock contention or deadlock risk.
+    pub fn scan_desktop_entries() -> Arc<HashMap<String, DesktopEntry>> {
         // Ensure the inotify watcher thread is started exactly once
         if !WATCHER_STARTED.swap(true, Ordering::SeqCst) {
             Self::start_desktop_watcher();
         }
 
-        let cache = DESKTOP_ENTRIES_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+        let cache = DESKTOP_ENTRIES_CACHE.get_or_init(|| Mutex::new(Arc::new(HashMap::new())));
         let mut guard = cache.lock().unwrap_or_else(|e| e.into_inner());
 
-        if DESKTOP_ENTRIES_DIRTY.swap(false, Ordering::SeqCst) {
-            // Re-scan all XDG application directories
-            guard.clear();
+        if DESKTOP_ENTRIES_DIRTY.swap(false, Ordering::SeqCst) || guard.is_empty() {
+            // Re-scan all XDG application directories into a new map
+            let mut new_entries = HashMap::new();
             let home = std::env::var("HOME").unwrap_or_default();
 
             let search_paths: Vec<PathBuf> = vec![
@@ -406,7 +405,7 @@ impl CenterSection {
                         let file_path = entry.path();
                         if file_path.extension().and_then(|s| s.to_str()) == Some("desktop") {
                             if let Some(desktop_entry) = Self::parse_desktop_file(&file_path) {
-                                guard.insert(desktop_entry.desktop_id.clone(), desktop_entry);
+                                new_entries.insert(desktop_entry.desktop_id.clone(), desktop_entry);
                             }
                         }
                     }
@@ -416,10 +415,11 @@ impl CenterSection {
             // Clear icon cache when desktop entries change (icons may have changed)
             ICON_CACHE.with(|cache| cache.borrow_mut().clear());
 
-            eprintln!("[center] Desktop entry cache refreshed: {} entries", guard.len());
+            eprintln!("[center] Desktop entry cache refreshed: {} entries", new_entries.len());
+            *guard = Arc::new(new_entries);
         }
 
-        guard
+        Arc::clone(&guard)
     }
 
     /// Spawn a background inotify watcher thread monitoring XDG application directories.
