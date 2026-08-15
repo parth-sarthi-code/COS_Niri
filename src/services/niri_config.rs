@@ -9,6 +9,7 @@ const MODULE_NAMESPACES: &[(&str, &str)] = &[
     ("calendar", "cos-calendar"),
     ("launcher", "cos-launcher"),
     ("tray", "cos-tray-menu"),
+    ("fuzzel", "fuzzel"),
 ];
 
 pub struct NiriConfigService;

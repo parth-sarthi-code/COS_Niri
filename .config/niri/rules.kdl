@@ -212,6 +212,21 @@ layer-rule {
     }
 }
 
+// Fuzzel App Launcher — blur + shadow for glassmorphism effect
+layer-rule {
+    match namespace="^fuzzel$"
+    geometry-corner-radius 16
+    shadow {
+        on
+    }
+    background-effect {
+        blur true
+        xray false
+        noise 0.03
+        saturation 1.6
+    }
+}
+
 // COS Settings Windowed App
 window-rule {
     match title="Settings"

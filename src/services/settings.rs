@@ -19,12 +19,16 @@ pub struct BlurSettings {
     pub launcher_blur: bool,
     #[serde(default = "default_true")]
     pub tray_blur: bool,
+    #[serde(default = "default_true")]
+    pub fuzzel_blur: bool,
     pub bar_xray: bool,
     pub quick_settings_xray: bool,
     pub calendar_xray: bool,
     pub launcher_xray: bool,
     #[serde(default)]
     pub tray_xray: bool,
+    #[serde(default)]
+    pub fuzzel_xray: bool,
 }
 
 fn default_true() -> bool {
@@ -39,11 +43,13 @@ impl Default for BlurSettings {
             calendar_blur: true,
             launcher_blur: true,
             tray_blur: true,
+            fuzzel_blur: true,
             bar_xray: true,
             quick_settings_xray: false,
             calendar_xray: false,
             launcher_xray: false,
             tray_xray: false,
+            fuzzel_xray: false,
         }
     }
 }
@@ -236,6 +242,7 @@ impl SettingsService {
             "calendar" => settings.blur.calendar_blur = enabled,
             "launcher" => settings.blur.launcher_blur = enabled,
             "tray" => settings.blur.tray_blur = enabled,
+            "fuzzel" => settings.blur.fuzzel_blur = enabled,
             _ => return,
         }
         Self::write_to_disk(&settings);
@@ -250,6 +257,7 @@ impl SettingsService {
             "calendar" => settings.blur.calendar_xray = enabled,
             "launcher" => settings.blur.launcher_xray = enabled,
             "tray" => settings.blur.tray_xray = enabled,
+            "fuzzel" => settings.blur.fuzzel_xray = enabled,
             _ => return,
         }
         Self::write_to_disk(&settings);

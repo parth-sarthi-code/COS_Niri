@@ -275,22 +275,39 @@ impl ThemeService {
             let _ = file.write_all(niri_kdl.as_bytes());
         }
 
-        // Generate Fuzzel color file
-        let s_hex = strip_hex(&surface_hex);
+        // Generate Fuzzel color file with glassmorphic transparency for Niri blur
+        let s_hex = if is_dark {
+            let s_strip = strip_hex(&surface_hex);
+            if s_strip.len() == 6 {
+                let r = u8::from_str_radix(&s_strip[0..2], 16).unwrap_or(18);
+                let g = u8::from_str_radix(&s_strip[2..4], 16).unwrap_or(19);
+                let b = u8::from_str_radix(&s_strip[4..6], 16).unwrap_or(26);
+                let dr = ((r as f32) * 0.35 + 12.0) as u8;
+                let dg = ((g as f32) * 0.35 + 13.0) as u8;
+                let db = ((b as f32) * 0.35 + 19.0) as u8;
+                format!("{:02x}{:02x}{:02x}", dr, dg, db)
+            } else {
+                "101116".to_string()
+            }
+        } else {
+            strip_hex(&surface_hex).to_string()
+        };
+
+        let bg_alpha_hex = format!("{:02x}", ((alpha * 0.85).clamp(0.35, 0.90) * 255.0) as u8);
         let p_hex = strip_hex(&primary);
         let txt_hex = strip_hex(&text_primary);
         let on_p_hex = strip_hex(&on_primary);
 
         let fuzzel_ini = format!(
             "[colors]\n\
-             background={}fa\n\
+             background={}{}\n\
              text={}ff\n\
              match={}ff\n\
-             selection={}ff\n\
+             selection={}e6\n\
              selection-text={}ff\n\
              selection-match={}ff\n\
              border={}ff\n",
-            s_hex, txt_hex, p_hex, p_hex, on_p_hex, on_p_hex, p_hex
+            s_hex, bg_alpha_hex, txt_hex, p_hex, p_hex, on_p_hex, on_p_hex, p_hex
         );
         let fuzzel_path = dirs::home_dir()
             .unwrap_or_default()

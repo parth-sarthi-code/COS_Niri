@@ -474,6 +474,7 @@ impl SettingsPopup {
             ("Quick Settings", "quick_settings", blur_settings.quick_settings_blur, blur_settings.quick_settings_xray),
             ("Calendar Popup", "calendar", blur_settings.calendar_blur, blur_settings.calendar_xray),
             ("App Launcher", "launcher", blur_settings.launcher_blur, blur_settings.launcher_xray),
+            ("Fuzzel Launcher", "fuzzel", blur_settings.fuzzel_blur, blur_settings.fuzzel_xray),
             ("System Tray Menu", "tray", blur_settings.tray_blur, blur_settings.tray_xray),
         ];
 
