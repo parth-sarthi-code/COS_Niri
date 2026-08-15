@@ -141,8 +141,7 @@ if [ "$DOWNLOADED" -eq 0 ]; then
 fi
 
 if [ "$DOWNLOADED" -eq 1 ] && [ -f "${TEMP_DIR}/cos-niri-bar" ]; then
-    cp "${TEMP_DIR}/cos-niri-bar" "${TARGET_BIN}"
-    chmod +x "${TARGET_BIN}"
+    install -m 755 "${TEMP_DIR}/cos-niri-bar" "${TARGET_BIN}"
     log_success "Binary installed to: ${TARGET_BIN}"
 else
     log_error "Failed to download release binary from GitHub."
