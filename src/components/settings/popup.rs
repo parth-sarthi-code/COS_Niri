@@ -589,11 +589,13 @@ impl SettingsPopup {
         let preset_buttons: Rc<RefCell<Vec<(u32, Button)>>> = Rc::new(RefCell::new(Vec::new()));
 
         let p_btns_ref = Rc::clone(&preset_buttons);
+        let deb_source: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
+        let deb_ref = Rc::clone(&deb_source);
+
         op_scale.connect_value_changed(move |sc| {
             let val = sc.value().round() as u32;
             op_val_c.set_text(&format!("{}%", val));
             SettingsService::set_opacity(val);
-            crate::services::theme::ThemeService::regenerate();
 
             for (p_val, b) in p_btns_ref.borrow().iter() {
                 if *p_val == val {
@@ -602,6 +604,17 @@ impl SettingsPopup {
                     b.remove_css_class("active");
                 }
             }
+
+            if let Some(src) = deb_ref.borrow_mut().take() {
+                src.remove();
+            }
+
+            let deb_inner = Rc::clone(&deb_ref);
+            let src_id = glib::timeout_add_local_once(std::time::Duration::from_millis(40), move || {
+                deb_inner.borrow_mut().take();
+                crate::services::theme::ThemeService::regenerate();
+            });
+            *deb_ref.borrow_mut() = Some(src_id);
         });
 
         for (p_val, p_name) in op_presets {

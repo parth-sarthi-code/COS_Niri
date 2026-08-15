@@ -180,26 +180,38 @@ impl ThemeService {
         let on_primary_container = colors.on_primary_container.resolve(is_dark);
 
         let surface_hex = colors.surface.resolve(is_dark);
-        let surface = hex_to_rgba(&surface_hex, alpha);
-        let surface_opaque = hex_to_rgba(&surface_hex, (alpha * 1.15).min(1.0));
+        let surface = if is_dark {
+            hex_to_dark_glass(&surface_hex, alpha)
+        } else {
+            hex_to_rgba(&surface_hex, alpha)
+        };
+        let surface_opaque = if is_dark {
+            hex_to_dark_glass(&surface_hex, (alpha * 1.15).min(1.0))
+        } else {
+            hex_to_rgba(&surface_hex, (alpha * 1.15).min(1.0))
+        };
 
         let surface_container_hex = colors.surface_container.resolve(is_dark);
-        let surface_variant = hex_to_rgba(&surface_container_hex, (alpha * 0.12).max(0.04));
+        let surface_variant = if is_dark {
+            hex_to_dark_glass(&surface_container_hex, (alpha * 0.15).max(0.04))
+        } else {
+            hex_to_rgba(&surface_container_hex, (alpha * 0.12).max(0.04))
+        };
 
         let outline_hex = colors.outline.resolve(is_dark);
-        let outline = hex_to_rgba(&outline_hex, (alpha * 0.15).max(0.06));
+        let outline = hex_to_rgba(&outline_hex, (alpha * 0.12).clamp(0.05, 0.18));
 
         let text_primary = colors.on_surface.resolve(is_dark);
         let text_secondary = colors.on_surface_variant.resolve(is_dark);
         let text_muted = outline_hex;
 
-        let card_bg = if is_dark { "rgba(255, 255, 255, 0.05)" } else { "rgba(0, 0, 0, 0.05)" };
-        let card_bg_hover = if is_dark { "rgba(255, 255, 255, 0.10)" } else { "rgba(0, 0, 0, 0.09)" };
-        let bubble_bg = if is_dark { "rgba(255, 255, 255, 0.10)" } else { "rgba(0, 0, 0, 0.07)" };
-        let bubble_bg_hover = if is_dark { "rgba(255, 255, 255, 0.18)" } else { "rgba(0, 0, 0, 0.12)" };
-        let trough_bg = if is_dark { "rgba(255, 255, 255, 0.12)" } else { "rgba(0, 0, 0, 0.10)" };
-        let sep_color = if is_dark { "rgba(255, 255, 255, 0.08)" } else { "rgba(0, 0, 0, 0.08)" };
-        let sidebar_bg = if is_dark { "rgba(255, 255, 255, 0.03)" } else { "rgba(0, 0, 0, 0.03)" };
+        let card_bg = if is_dark { "rgba(255, 255, 255, 0.04)" } else { "rgba(0, 0, 0, 0.04)" };
+        let card_bg_hover = if is_dark { "rgba(255, 255, 255, 0.08)" } else { "rgba(0, 0, 0, 0.08)" };
+        let bubble_bg = if is_dark { "rgba(255, 255, 255, 0.05)" } else { "rgba(0, 0, 0, 0.06)" };
+        let bubble_bg_hover = if is_dark { "rgba(255, 255, 255, 0.10)" } else { "rgba(0, 0, 0, 0.10)" };
+        let trough_bg = if is_dark { "rgba(0, 0, 0, 0.35)" } else { "rgba(0, 0, 0, 0.10)" };
+        let sep_color = if is_dark { "rgba(255, 255, 255, 0.06)" } else { "rgba(0, 0, 0, 0.06)" };
+        let sidebar_bg = if is_dark { "rgba(0, 0, 0, 0.18)" } else { "rgba(0, 0, 0, 0.03)" };
 
         let css = format!(
             "@define-color primary {};\n\
@@ -314,6 +326,25 @@ impl ThemeService {
             let _ = file.write_all(css.as_bytes());
         }
     }
+}
+
+fn hex_to_dark_glass(hex: &str, alpha: f32) -> String {
+    let hex = hex.trim_start_matches('#');
+    if hex.len() == 6 {
+        if let (Ok(r), Ok(g), Ok(b)) = (
+            u8::from_str_radix(&hex[0..2], 16),
+            u8::from_str_radix(&hex[2..4], 16),
+            u8::from_str_radix(&hex[4..6], 16),
+        ) {
+            // Blend 35% extracted color with 65% deep charcoal black (#0c0d13 = 12, 13, 19)
+            // This guarantees consistent dark glassmorphism that never washes out into milky white
+            let dark_r = ((r as f32) * 0.35 + 12.0) as u8;
+            let dark_g = ((g as f32) * 0.35 + 13.0) as u8;
+            let dark_b = ((b as f32) * 0.35 + 19.0) as u8;
+            return format!("rgba({}, {}, {}, {})", dark_r, dark_g, dark_b, alpha);
+        }
+    }
+    format!("rgba(14, 15, 22, {})", alpha)
 }
 
 fn hex_to_rgba(hex: &str, alpha: f32) -> String {
