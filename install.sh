@@ -9,6 +9,7 @@ REPO="parth-sarthi-code/COS_Niri"
 INSTALL_BIN_DIR="$HOME/.local/bin"
 INSTALL_FONT_DIR="$HOME/.local/share/fonts/cos-niri"
 CONFIG_DIR="$HOME/.config/cos-niri"
+NIRI_DIR="$HOME/.config/niri"
 GITHUB_RAW="https://raw.githubusercontent.com/${REPO}/main"
 
 # ANSI Colors
@@ -23,6 +24,17 @@ log_info()    { echo -e "${BLUE}${BOLD}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}${BOLD}[OK]${NC} $1"; }
 log_warn()    { echo -e "${YELLOW}${BOLD}[WARN]${NC} $1"; }
 log_error()   { echo -e "${RED}${BOLD}[ERROR]${NC} $1"; }
+
+# Detect if running from within local repository clone
+IS_LOCAL_REPO=0
+REPO_DIR=""
+if [ -n "${BASH_SOURCE[0]}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+    POTENTIAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "${POTENTIAL_DIR}/Cargo.toml" ] && [ -d "${POTENTIAL_DIR}/.config/niri" ]; then
+        IS_LOCAL_REPO=1
+        REPO_DIR="${POTENTIAL_DIR}"
+    fi
+fi
 
 echo -e "${BOLD}Installing cos-niri-bar...${NC}\n"
 
@@ -149,11 +161,9 @@ FONTS=(
     "Roboto-Bold.ttf"
 )
 
-# If fonts exist locally in the repository, copy them. Otherwise download from GitHub raw.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 for font in "${FONTS[@]}"; do
-    if [ -f "${SCRIPT_DIR}/fonts/${font}" ]; then
-        cp "${SCRIPT_DIR}/fonts/${font}" "${INSTALL_FONT_DIR}/${font}"
+    if [ "$IS_LOCAL_REPO" -eq 1 ] && [ -f "${REPO_DIR}/fonts/${font}" ]; then
+        cp "${REPO_DIR}/fonts/${font}" "${INSTALL_FONT_DIR}/${font}"
     else
         log_info "Downloading ${font}..."
         curl -sSL -o "${INSTALL_FONT_DIR}/${font}" "${GITHUB_RAW}/fonts/${font}"
@@ -235,7 +245,6 @@ fi
 # ------------------------------------------------------------------------------
 # 5. Backup Old Niri Configuration & Deploy COS Niri Configs
 # ------------------------------------------------------------------------------
-NIRI_DIR="$HOME/.config/niri"
 mkdir -p "${NIRI_DIR}"
 
 # Check if there are existing configuration files to backup
@@ -256,39 +265,38 @@ with zipfile.ZipFile(tmp_zip, "w", zipfile.ZIP_DEFLATED) as zipf:
             rel_path = os.path.relpath(full_path, niri_dir)
             zipf.write(full_path, rel_path)
 os.replace(tmp_zip, zip_path)
-'
+' 2>/dev/null || true
     log_success "Backup created at ${NIRI_DIR}/backup.zip"
 fi
 
 log_info "Deploying COS Niri configuration files..."
-if [ -d "${SCRIPT_DIR}/.config/niri" ]; then
-    cp -r "${SCRIPT_DIR}/.config/niri/"* "${NIRI_DIR}/"
-    [ -d "${SCRIPT_DIR}/.config/cos-niri" ] && cp -r "${SCRIPT_DIR}/.config/cos-niri/"* "${CONFIG_DIR}/"
-    [ -d "${SCRIPT_DIR}/.config/fuzzel" ] && mkdir -p "$HOME/.config/fuzzel" && cp -r "${SCRIPT_DIR}/.config/fuzzel/"* "$HOME/.config/fuzzel/"
-    if [ -d "${SCRIPT_DIR}/.config/nautilus/scripts" ]; then
-        mkdir -p "$HOME/.local/share/nautilus/scripts"
-        cp -r "${SCRIPT_DIR}/.config/nautilus/scripts/"* "$HOME/.local/share/nautilus/scripts/"
-        chmod +x "$HOME/.local/share/nautilus/scripts/"* 2>/dev/null || true
+mkdir -p "${NIRI_DIR}/scripts"
+mkdir -p "$HOME/.config/fuzzel"
+mkdir -p "$HOME/.local/share/nautilus/scripts"
+
+if [ "$IS_LOCAL_REPO" -eq 1 ]; then
+    # Local installation from cloned repo
+    cp -r "${REPO_DIR}/.config/niri/"* "${NIRI_DIR}/"
+    [ -d "${REPO_DIR}/.config/cos-niri" ] && cp -r "${REPO_DIR}/.config/cos-niri/"* "${CONFIG_DIR}/"
+    [ -d "${REPO_DIR}/.config/fuzzel" ] && cp -r "${REPO_DIR}/.config/fuzzel/"* "$HOME/.config/fuzzel/"
+    if [ -d "${REPO_DIR}/.config/nautilus/scripts" ]; then
+        cp -r "${REPO_DIR}/.config/nautilus/scripts/"* "$HOME/.local/share/nautilus/scripts/"
     fi
 else
-    # Remote fallback
+    # Remote standalone installation (curl | bash)
     log_info "Fetching Niri configs from GitHub..."
-    for f in animations binds colors config environment input layout misc outputs rules startup; do
-        curl -sSL -o "${NIRI_DIR}/${f}.kdl" "${GITHUB_RAW}/.config/niri/${f}.kdl"
+    NIRI_FILES=("animations.kdl" "binds.kdl" "colors.kdl" "config.kdl" "environment.kdl" "input.kdl" "layout.kdl" "misc.kdl" "outputs.kdl" "rules.kdl" "startup.kdl")
+    for f in "${NIRI_FILES[@]}"; do
+        curl -sSL -o "${NIRI_DIR}/${f}" "${GITHUB_RAW}/.config/niri/${f}"
     done
-    mkdir -p "${NIRI_DIR}/scripts"
     curl -sSL -o "${NIRI_DIR}/scripts/fuzzel-power.sh" "${GITHUB_RAW}/.config/niri/scripts/fuzzel-power.sh"
-    mkdir -p "$HOME/.config/fuzzel"
     curl -sSL -o "$HOME/.config/fuzzel/fuzzel.ini" "${GITHUB_RAW}/.config/fuzzel/fuzzel.ini"
+    curl -sSL -o "$HOME/.local/share/nautilus/scripts/Set as Wallpaper" "${GITHUB_RAW}/.config/nautilus/scripts/Set%20as%20Wallpaper"
 fi
 
-# Replace any template paths with current user's $HOME
-find "${NIRI_DIR}" "${CONFIG_DIR}" -type f -exec sed -i "s|/home/predator|$HOME|g" {} + 2>/dev/null || true
-[ -d "$HOME/.config/fuzzel" ] && find "$HOME/.config/fuzzel" -type f -exec sed -i "s|/home/predator|$HOME|g" {} + 2>/dev/null || true
-[ -d "$HOME/.local/share/nautilus/scripts" ] && find "$HOME/.local/share/nautilus/scripts" -type f -exec sed -i "s|/home/predator|$HOME|g" {} + 2>/dev/null || true
-
-# Make scripts executable
-[ -d "${NIRI_DIR}/scripts" ] && chmod +x "${NIRI_DIR}/scripts/"* 2>/dev/null || true
+# Ensure executable permissions on all scripts
+chmod +x "${NIRI_DIR}/scripts/"* 2>/dev/null || true
+chmod +x "$HOME/.local/share/nautilus/scripts/"* 2>/dev/null || true
 
 log_success "Niri configs deployed to ${NIRI_DIR}"
 
