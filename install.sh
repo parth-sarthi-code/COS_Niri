@@ -90,7 +90,7 @@ else
         mkdir -p "${INSTALL_BIN_DIR}"
         MATUGEN_TMP=$(mktemp -d)
         MATUGEN_URL="https://github.com/InioX/matugen/releases/latest/download/matugen-x86_64-unknown-linux-gnu.tar.gz"
-        if curl -sSL -o "${MATUGEN_TMP}/matugen.tar.gz" "$MATUGEN_URL" 2>/dev/null; then
+        if curl -4 -sSL --retry 3 --retry-delay 1 -o "${MATUGEN_TMP}/matugen.tar.gz" "$MATUGEN_URL" 2>/dev/null; then
             tar -xzf "${MATUGEN_TMP}/matugen.tar.gz" -C "${INSTALL_BIN_DIR}" matugen 2>/dev/null || tar -xzf "${MATUGEN_TMP}/matugen.tar.gz" -C "${INSTALL_BIN_DIR}"
             chmod +x "${INSTALL_BIN_DIR}/matugen" 2>/dev/null || true
             if [ -f "${INSTALL_BIN_DIR}/matugen" ]; then
@@ -130,11 +130,11 @@ fi
 
 # Method B: Direct GitHub Releases API
 if [ "$DOWNLOADED" -eq 0 ]; then
-    RELEASE_JSON=$(curl -s "https://api.github.com/repos/${REPO}/releases/latest")
+    RELEASE_JSON=$(curl -4 -s "https://api.github.com/repos/${REPO}/releases/latest")
     DOWNLOAD_URL=$(echo "$RELEASE_JSON" | grep -o 'https://[^"]*releases/download/[^"]*/cos-niri-bar' | head -n 1)
 
     if [ -n "$DOWNLOAD_URL" ]; then
-        curl -sSL -o "${TEMP_DIR}/cos-niri-bar" "$DOWNLOAD_URL"
+        curl -4 -sSL --retry 3 --retry-delay 1 -o "${TEMP_DIR}/cos-niri-bar" "$DOWNLOAD_URL"
         DOWNLOADED=1
     fi
 fi
@@ -166,7 +166,7 @@ for font in "${FONTS[@]}"; do
         cp "${REPO_DIR}/fonts/${font}" "${INSTALL_FONT_DIR}/${font}"
     else
         log_info "Downloading ${font}..."
-        curl -sSL --retry 3 --retry-delay 1 -o "${INSTALL_FONT_DIR}/${font}" "${GITHUB_RAW}/fonts/${font}"
+        curl -4 -sSL --retry 3 --retry-delay 1 -o "${INSTALL_FONT_DIR}/${font}" "${GITHUB_RAW}/fonts/${font}"
     fi
 done
 
@@ -180,6 +180,7 @@ fi
 # 4. Initialize Configuration Directory
 # ------------------------------------------------------------------------------
 mkdir -p "${CONFIG_DIR}"
+
 if [ ! -f "${CONFIG_DIR}/colors.css" ]; then
     log_info "Creating default theme colors at ${CONFIG_DIR}/colors.css..."
     cat > "${CONFIG_DIR}/colors.css" << 'EOF'
@@ -193,6 +194,20 @@ if [ ! -f "${CONFIG_DIR}/colors.css" ]; then
 @define-color text-primary #ffffff;
 @define-color text-secondary #c4c6d0;
 @define-color text-muted #938f99;
+EOF
+fi
+
+if [ ! -f "${CONFIG_DIR}/colors-niri.kdl" ]; then
+    log_info "Creating default Niri theme at ${CONFIG_DIR}/colors-niri.kdl..."
+    cat > "${CONFIG_DIR}/colors-niri.kdl" << 'EOF'
+layout {
+    focus-ring {
+        active-color "#b4c5ff"
+    }
+    border {
+        active-color "#b4c5ff"
+    }
+}
 EOF
 fi
 
@@ -287,11 +302,11 @@ else
     log_info "Fetching Niri configs from GitHub..."
     NIRI_FILES=("animations.kdl" "binds.kdl" "colors.kdl" "config.kdl" "environment.kdl" "input.kdl" "layout.kdl" "misc.kdl" "outputs.kdl" "rules.kdl" "startup.kdl")
     for f in "${NIRI_FILES[@]}"; do
-        curl -sSL --retry 3 --retry-delay 1 -o "${NIRI_DIR}/${f}" "${GITHUB_RAW}/.config/niri/${f}"
+        curl -4 -sSL --retry 3 --retry-delay 1 -o "${NIRI_DIR}/${f}" "${GITHUB_RAW}/.config/niri/${f}"
     done
-    curl -sSL --retry 3 --retry-delay 1 -o "${NIRI_DIR}/scripts/fuzzel-power.sh" "${GITHUB_RAW}/.config/niri/scripts/fuzzel-power.sh"
-    curl -sSL --retry 3 --retry-delay 1 -o "$HOME/.config/fuzzel/fuzzel.ini" "${GITHUB_RAW}/.config/fuzzel/fuzzel.ini"
-    curl -sSL --retry 3 --retry-delay 1 -o "$HOME/.local/share/nautilus/scripts/Set as Wallpaper" "${GITHUB_RAW}/.config/nautilus/scripts/Set%20as%20Wallpaper"
+    curl -4 -sSL --retry 3 --retry-delay 1 -o "${NIRI_DIR}/scripts/fuzzel-power.sh" "${GITHUB_RAW}/.config/niri/scripts/fuzzel-power.sh"
+    curl -4 -sSL --retry 3 --retry-delay 1 -o "$HOME/.config/fuzzel/fuzzel.ini" "${GITHUB_RAW}/.config/fuzzel/fuzzel.ini"
+    curl -4 -sSL --retry 3 --retry-delay 1 -o "$HOME/.local/share/nautilus/scripts/Set as Wallpaper" "${GITHUB_RAW}/.config/nautilus/scripts/Set%20as%20Wallpaper"
 fi
 
 # Ensure executable permissions on all scripts
