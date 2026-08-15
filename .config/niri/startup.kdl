@@ -1,14 +1,5 @@
-// Spawn processes at startup
-// spawn-at-startup "waybar"
+// Startup Daemons & Core Desktop Shell Services
 spawn-at-startup "cos-niri-bar"
 spawn-at-startup "swaync"
-spawn-at-startup "swaybg" "-i" "/home/predator/.config/background" "-m" "fill"
-spawn-at-startup "/home/predator/.local/bin/cos-launcher" "--dock"
-
-// Reference suggestions (uncomment to activate):
-// spawn-sh-at-startup "awww.sh"
-// spawn-sh-at-startup "swayidle"
-// spawn-sh-at-startup "wl-paste --type text --watch cliphist store"
-// spawn-sh-at-startup "wl-paste --type image --watch cliphist store"
-spawn-at-startup "/usr/libexec/polkit-mate-authentication-agent-1"
-spawn-at-startup "/home/predator/.local/bin/niri-sidebar" "listen"
+spawn-sh-at-startup "swaybg -i ~/.config/background -m fill"
+spawn-sh-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 || /usr/libexec/polkit-mate-authentication-agent-1 || /usr/lib/polkit-kde-authentication-agent-1"

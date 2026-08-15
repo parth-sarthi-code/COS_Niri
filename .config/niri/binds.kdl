@@ -11,7 +11,7 @@ binds {
 
     Mod+B hotkey-overlay-title="Open Firefox" { spawn "firefox"; }
     Mod+E hotkey-overlay-title="Open Nautilus" { spawn "nautilus"; }
-    Mod+A hotkey-overlay-title="Open Antigravity IDE" { spawn "/home/predator/Applications/Antigravity IDE/antigravity-ide"; }
+    Mod+A hotkey-overlay-title="Open Antigravity IDE" { spawn-sh "antigravity-ide || antigravity || code"; }
 
     // Quick Settings & Notification Control Center hotkeys (SwayNC)
     Mod+N hotkey-overlay-title="Toggle Control Center" { spawn "swaync-client" "-t" "-sw"; }
@@ -205,21 +205,9 @@ binds {
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
 
     // Quit Niri actions / System Power Menu
-    Mod+Shift+E hotkey-overlay-title="System Power Menu: fuzzel" { spawn "/home/predator/.config/niri/scripts/fuzzel-power.sh"; }
+    Mod+Shift+E hotkey-overlay-title="System Power Menu: fuzzel" { spawn-sh "~/.config/niri/scripts/fuzzel-power.sh"; }
     Ctrl+Alt+Delete { quit; }
 
     // Powers off the monitors.
     Mod+Shift+P { power-off-monitors; }
-
-    // Toggle the focused window into/out of the sidebar
-    Mod+S { spawn-sh "/home/predator/.local/bin/niri-sidebar toggle-window"; }
-
-    // Toggle sidebar visibility (hide/show)
-    Mod+Shift+S { spawn-sh "/home/predator/.local/bin/niri-sidebar toggle-visibility"; }
-
-    // Flip the order of the sidebar
-    Mod+Ctrl+S { spawn-sh "/home/predator/.local/bin/niri-sidebar flip"; }
-
-    // Force reorder (useful if something gets misaligned manually)
-    Mod+Alt+R { spawn-sh "/home/predator/.local/bin/niri-sidebar reorder"; }
 }

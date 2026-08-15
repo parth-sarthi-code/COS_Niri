@@ -1,5 +1,5 @@
-// All colors here. DON'T add elsewhere!
-include "/home/predator/.config/cos-niri/colors-niri.kdl"
+// Dynamic Matugen theme colors for Niri
+include "~/.config/cos-niri/colors-niri.kdl"
 
 layout {
     focus-ring {

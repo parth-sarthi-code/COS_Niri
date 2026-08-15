@@ -2,7 +2,6 @@ input {
     focus-follows-mouse
     
     keyboard {
-        xkb 
         numlock
     }
 
@@ -10,8 +9,4 @@ input {
         tap
         natural-scroll
     }
-
-    mouse 
-
-    trackpoint 
 }

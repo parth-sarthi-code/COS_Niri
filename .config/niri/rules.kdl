@@ -122,28 +122,6 @@ window-rule {
 // ENVIRONMENT & SHELL LAYER RULES
 // =============================================================================
 
-layer-rule {
-    geometry-corner-radius 12
-    match namespace="wlr_which_key"
-    shadow {
-      on
-    }
-    background-effect {
-        blur true
-    }
-}
-
-layer-rule {
-    geometry-corner-radius 12
-    match namespace="launcher"
-    shadow {
-      on
-    }
-    background-effect {
-        blur true
-    }
-}
-
 // Show blurred wallpaper behind the Niri overview interface
 layer-rule {
     match namespace="overview"
@@ -156,15 +134,12 @@ window-rule {
     open-maximized true
 }
 
-// Allow floating windows to shrink properly to respect the sidebar dimensions
+// Allow floating windows to shrink properly
 window-rule {
     match is-floating=true
     min-width 100
     min-height 100
 }
-
-
-
 
 // ChromeOS Bar — blur + shadow for glass shelf effect
 layer-rule {
@@ -223,18 +198,6 @@ layer-rule {
     }
 }
 
-// Icedock Floating Glass Dock — pure unitone blur
-layer-rule {
-    match namespace="icedock"
-    geometry-corner-radius 22
-    shadow {
-        off
-    }
-    background-effect {
-        blur true
-        xray false
-    }
-}
 
 // ChromeOS System Tray Menu Popup — blur + shadow for glassmorphism effect
 layer-rule {
