@@ -214,6 +214,7 @@ layer-rule {
 
 // Fuzzel App Launcher — blur + shadow for glassmorphism effect
 layer-rule {
+    match namespace="^launcher$"
     match namespace="^fuzzel$"
     geometry-corner-radius 16
     shadow {
